@@ -1,0 +1,72 @@
+/*
+*	Project Absolam - Player Class
+*
+*/
+
+class PA_Player : DoomPlayer
+{
+	float CamOriginZ;
+	int CamTID_MN,	// This is a MAGIC NUMBER! Check DEV_INFO.readme
+		iLoadedExtensionCount;
+	bool bCanUseCamera,
+		bCanLoadExtensions;
+	
+	PA_Camera_ControlHandler camHandler;
+	
+	// This method is a special addon for the crosshair, but it's useful anyway.
+	bool PA_CheckSight(Actor a_target = null, int flags = 0) 
+	{ 
+		if (a_target)
+			return CheckSight(a_target, flags);
+		else if (target)
+			return CheckSight(target, flags);
+		else
+			return false;
+	}
+	
+	// Imports all of the DoomPlayer class defaults
+	override void PostBeginPlay()
+	{
+		Super.PostBeginPlay();
+		if (GetAge() < 1)
+		{
+			camHandler = PA_Camera_ControlHandler(EventHandler.Find("PA_Camera_ControlHandler"));
+			iLoadedExtensionCount = 0;
+			if (camHandler)
+				bCanLoadExtensions = true;
+			else
+				bCanLoadExtensions = false;
+			
+			Console.Printf("PLAYER(#%d): - Initializing PA Camera. Hang on...", PlayerNumber());
+			CamOriginZ = 64;
+			CamTID_MN = 3113;
+			// Spawn Camera at the bottom of its scroll
+			A_SpawnItemEx("PA_Camera", -Cvar.GetCVar('pavar_CamOriginX', players[PlayerNumber()]).GetFloat(), 0.0, CamOriginZ, 0.0, 0.0, 0.0, 0.0, SXF_SETMASTER, 0, CamTID_MN + PlayerNumber());
+			bCanUseCamera = true;			
+		}
+	}
+	
+	override void Tick()
+	{
+		Super.Tick();
+		if (bCanUseCamera)
+		{
+			if (!CVar.GetCVar('pavar_FrstCam', players[PlayerNumber()]).GetBool())
+				ChangeCamera(CamTID_MN + PlayerNumber(), 0, 0);
+			else
+				ChangeCamera(0, 0, 0);
+		}
+		
+		// Extensions
+		if (bCanLoadExtensions && iLoadedExtensionCount < camHandler.getTotalExtensions())
+		{
+			for (; iLoadedExtensionCount < camHandler.getTotalExtensions(); iLoadedExtensionCount++)
+			{
+				class<Actor> cls = camHandler.getExtension(iLoadedExtensionCount);
+				if (cls && PA_ExtData(camHandler.dar_ExtData[iLoadedExtensionCount]).dar_ExtPlayerToggles[PlayerNumber()])
+					A_SpawnItemEx(cls, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, SXF_SETMASTER, 0, 0);
+			}
+		}
+	}
+}
+

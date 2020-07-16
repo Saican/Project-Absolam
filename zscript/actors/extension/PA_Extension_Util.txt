@@ -1,0 +1,32 @@
+/*
+*	Project Absolam - Extension Utilities
+*
+*	This is just a central location for internal stuff.
+*
+*/
+
+
+struct PA_Util
+{
+	const _UnregisterAll = "unregisterall";
+	const _Unregister = "unregister";
+	const _Register = "registerextension";
+
+	enum EXTCMD
+	{
+		UnregisterAll,
+		Unregister,
+		Register,
+		unknown,
+	};
+	
+	static EXTCMD NetCmdToEnum (string eCmd)
+	{
+		if (eCmd ~== _UnregisterAll) return UnregisterAll;
+		else if (eCmd ~== _Unregister) return Unregister;
+		else if (eCmd ~== _Register) return Register;
+		else return unknown;
+	}
+	
+	static float ActorPointAngle(float points, float interval) { return (360.0 / points) * interval; }
+}

@@ -1,0 +1,55 @@
+AddOptionMenu "OptionsMenu"
+{
+	StaticText	""
+	StaticText "Project Absolam v0.1"
+	Submenu		"Project Absolam Settings", "PAOptions"	
+}
+
+OptionMenu "PAOptions"
+{
+	Class "TLTPOptionsMenu"
+	Title "Project Absolam Settings"
+	Position -32
+	
+	StaticText		""
+	
+	StaticText 		"- General -", 									"Gold"
+	TLTPOption		"$PACAMERAMNU_MISC_DEBUG",						"$PACAMERAMNU_TOOLTIP_DEBUG",				"Blue", "pavar_CamDebug", "OnOff"
+	TLTPOption		"Use Project Extension", "This must be enabled for project extensions to be loaded.", "White", "pavar_UseExtensions", "OnOff"
+	
+	StaticText		""
+	
+	StaticText		"- Module & Extension Settings -", 				"Gold"
+	TLTPSubMenu		"$OPTMNU_PACAMERA", 							"Options for the 3rd person camera.", 		"White", "PACameraOptionsMenu"
+}
+
+OptionMenu "PACameraOptionsMenu"
+{
+	Class "TLTPOptionsMenu"
+	Title "$PACAMERAMNU_TITLE"
+	Position -32
+	
+	StaticText		""
+	
+	StaticText		"$PACAMERAMNU_TITLE_PITCH", 					"White"
+	TLTPOption		"$PACAMERAMNU_PITCH_AUTOPITCH",					"$PACAMERAMNU_TOOLTIP_AUTOPITCH",			"Blue",	"pavar_AutoPitch", "OnOff"
+	TLTPSlider		"$PACAMERAMNU_PITCH_CAMERAPITCH",				"$PACAMERAMNU_TOOLTIP_CAMERAPITCH",			"Blue", "pavar_CamPitch", -90, 90, 0.25, 2
+	TLTPSlider		"$PACAMERAMNU_PITCH_PITCHSPEED",				"$PACAMERAMNU_TOOLTIP_PITCHSPEED",			"Blue", "pavar_CamPitchSpeed", 0.05, 1.0, 0.05, 2
+	TLTPSlider		"$PACAMERAMNU_PITCH_ORIGINXY",					"$PACAMERAMNU_TOOLTIP_ORIGINXYZ",			"Blue", "pavar_CamOriginX", 64.0, 128.0, 8.0, 0
+	TLTPSlider		"$PACAMERAMNU_PITCH_ORIGINZ",					"$PACAMERAMNU_TOOLTIP_ORIGINXYZ",			"Blue", "pavar_CamOriginZ", 64.0, 128.0, 8.0, 0
+	
+	StaticText		""
+	
+	StaticText		"$PACAMERAMNU_TITLE_CONTROLS", 					"White"
+	TLTPSlider		"$PACAMERAMNU_CONTROLS_INCREMENT",				"$PACAMERAMNU_TOOLTIP_INCREMENT",			"Blue", "pavar_CamPitchLocation", 1, 19, 1, 0
+	TLTPControl		"$PACAMERAMNU_CONTROLS_INCREMENT_BINDUP",		"$PACAMERAMNU_TOOLTIP_INCREMENT_BIND",		"Blue", "NetEvent tpitchup"
+	TLTPControl		"$PACAMERAMNU_CONTROLS_INCREMENT_BINDDWN",		"$PACAMERAMNU_TOOLTIP_INCREMENT_BIND",		"Blue", "NetEvent tpitchdwn"
+	
+	StaticText  	""
+	
+	StaticText		"$PACAMERAMNU_TITLE_MISC", 						"White"
+	TLTPOption		"$PACAMERAMNU_MISC_CAMERACONNECTION",			"$PACAMERAMNU_TOOLTIP_CAMERACONNECTION",	"Blue", "pavar_CamConnect", "OnOff"
+	TLTPControl		"$PACAMERAMNU_MISC_CAMERACONNECTION_BIND", 		"$PACAMERAMNU_TOOLTIP_CAMERACONNECTION",	"Blue", "NetEvent tcamcon"
+	TLTPOption		"$PACAMERAMNU_MISC_FIRSTPERSONTOGGLE",			"$PACAMERAMNU_TOOLTIP_FIRSTPERSONTOGGLE",	"Blue", "pavar_FrstCam", "OnOff"
+	TLTPControl		"$PACAMERAMNU_MISC_FIRSTPERSONTOGGLE_BIND", 	"$PACAMERAMNU_TOOLTIP_FIRSTPERSONTOGGLE",	"Blue", "NetEvent tfrstcam"
+}

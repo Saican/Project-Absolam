@@ -1,0 +1,292 @@
+/*
+*	Project Absolam - Player Camera Control Event Handler
+*
+*
+*/
+
+class PA_Camera_ControlHandler : EventHandler
+{
+	//
+	// - Debug
+	//
+	Array<Actor> dar_DebugCams;
+	Array<Actor> dar_DebugExtensions;
+	
+	Array<string> dar_DebugMessages;
+	Array<int> dar_DebugMessageColors;
+	
+	//
+	// - Extensions
+	//
+	private Array<string> dar_ExtensionNames;
+	// Stores the extension name
+	// Args - string, Extension Nice Name; string, actor name
+	// Return - none
+	private void sendExtensionName(string sNme, string aNme) 
+	{ 
+		if (aNme != "")
+		{			
+			dar_ExtensionNames.Push(aNme); 
+			Console.Printf(string.Format("CONTROL HANDLER: - Extension, \"%s\", was successfully registered for %i %s.\n- - -", sNme, PA_ExtData(dar_ExtData[dar_ExtData.Size() - 1]).dar_ExtPlayerToggles.Size(), PA_ExtData(dar_ExtData[dar_ExtData.Size() - 1]).dar_ExtPlayerToggles.Size() > 1 ? "players" : "player"));
+		}
+		else
+			Console.Printf("CONTROL HANDLER: - ERROR! - Empty extension name received!\n- Check the network event string in your extension registrar handler.\n- - -");
+	}
+	int getTotalExtensions() { return dar_ExtensionNames.Size(); }
+	string getExtension(int at) { return dar_ExtensionNames[at]; }
+	
+	Array<PA_ExtData> dar_ExtData;
+	private Array<string> dar_cbExtToggleNames;
+	// Stores a list of booleans for each extension player toggle
+	// Args - string, Extension Nice Name; string, CVar boolean name
+	// Return - true on success, false on failure.
+	private bool setExtensionData(string sNme, string cbNme, PA_ExtData_Varg tVargs = null)
+	{
+		PA_ExtData extData = new ("PA_ExtData");
+		if (extData)
+		{
+			if (tVargs)
+				extData.dar_VArgs.Move(tVargs.dar_VArgs);
+			
+			for (int i = 0; i < MAXPLAYERS; i++)
+			{
+				if (PlayerInGame[i])
+				{
+					let cnet = CVar.GetCVar(cbNme, players[i]);
+					if (cnet)
+					{
+						if(cnet.GetBool())
+							extData.dar_ExtPlayerToggles.Push(true);
+						else
+							extData.dar_ExtPlayerToggles.Push(false);
+					}
+					else
+					{
+						Console.Printf(string.Format("CONTROL HANDLER: - ERROR! - Could not find extension toggle CVar, \"%s\", for extension, \"%s\"!\n- Check extension CVARINFO and the network event string in your extension registrar handler.\n- - -", cbNme, sNme));
+						return false;
+					}
+				}
+			}
+			dar_ExtData.Push(extData);
+			dar_cbExtToggleNames.Push(cbNme);
+			return true;
+		}
+		else
+			return false;
+	}
+
+
+	//
+	// - Methods
+	//
+	override void OnRegister()
+	{
+		Console.Printf("CONTROL HANDLER: - Hello, I'm the Camera Control Handler.\nProject modules and I need to communicate, I am ready and standing by for them to register with me.\n- - -");
+	}
+	
+	override void NetworkProcess(ConsoleEvent e)
+	{
+		if (e.Name == "tpitchup")
+			SendCameraPitchEvent(true);
+		else if (e.Name == "tpitchdwn")
+			SendCameraPitchEvent(false);
+		else if (e.Name == "tcamcon")
+			SendCameraConnectionEvent();
+		else if (e.Name == "tfrstcam")
+			SendCameraTypeEvent();
+		else // Should be an extension
+			SendExtensionEvent(e);
+	}
+	
+	private PA_Camera cameraFinder()
+	{
+		for (int i = 0; i < dar_DebugCams.Size(); i++)
+		{
+			if (PA_Camera(dar_DebugCams[i]).a_Player.PlayerNumber() == consoleplayer)
+				return PA_Camera(dar_DebugCams[i]);
+		}
+		
+		return null;
+	}
+   
+	// Something wild - these events were at one time ACS scripts!
+	private void SendCameraPitchEvent(bool pitch)
+	{
+		let cam = cameraFinder();
+		if (cam)
+		{
+			if (pitch)
+			{
+				cam.i_AngleVar += 1;
+				if (cam.i_AngleVar > 19)
+					cam.i_AngleVar = 19;
+			}
+			else
+			{
+				cam.i_AngleVar -= 1;
+				if (cam.i_AngleVar < 1)
+					cam.i_AngleVar = 1;
+			}
+			
+			CVar.GetCVar('pavar_CamPitchLocation', players[consoleplayer]).SetInt(cam.i_AngleVar);
+		}
+	}
+	
+	private void SendCameraConnectionEvent()
+	{
+		let cam = cameraFinder();
+		if (cam)
+			CVar.GetCVar('pavar_CamConnect', players[cam.a_Player.PlayerNumber()]).SetBool(!CVar.GetCVar('pavar_CamConnect', players[cam.a_Player.PlayerNumber()]).GetBool());
+	}
+	
+	private void SendCameraTypeEvent()
+	{
+		let cam = cameraFinder();
+		if (cam)
+			CVar.GetCVar('pavar_FrstCam', players[cam.a_Player.PlayerNumber()]).SetBool(!CVar.GetCVar('pavar_FrstCam', players[cam.a_Player.PlayerNumber()]).GetBool());
+	}
+	
+	private void SendExtensionEvent(ConsoleEvent e)
+	{
+		Array<string> dar_sExt;
+		e.Name.Split(dar_sExt, ":");
+		if (dar_sExt.Size() >= 4)
+		{
+			string eCmd = dar_sExt[0]; 	// Command
+			string sNme = dar_sExt[1];	// Nice Name
+			string aNme = dar_sExt[2]; 	// Actor Name
+			string cbNme = dar_sExt[3];	// CVar
+			Array<string> vargs;
+			if (dar_sExt.Size() > 4)
+			{
+				for (int i = 4; i < dar_sExt.Size(); i++)
+					vargs.Push(dar_sExt[i]);
+			}
+			
+			switch (PA_Util.NetCmdToEnum(eCmd))
+			{
+				case PA_Util.UnregisterAll:
+					break;
+				case PA_Util.Unregister:
+					break;
+				case PA_Util.Register:
+					let tVargs = new("PA_ExtData_Varg");
+					tVargs.dar_VArgs.Move(vargs);
+					if (setExtensionData(sNme, cbNme, tVargs))
+						sendExtensionName(sNme, aNme);
+					break;
+				default: // The only way it should get here is if something is sending a net event that can be split into at least 4 strings that this handler picks up on
+					Console.Printf(string.Format("CONTROL HANDLER: - WARNING! - Unknown extension command, %s, received!  Ignore if command is valid to something else.\n - Control handler did nothing with command.\n - Contents of command arguments:\n - Nice Name : %s\n - Actor Name : %s\n - CVar : %s\n Number of detected arguments: %d", eCmd, sNme, aNme, cbNme, dar_sExt.Size()));
+					break;
+			}
+		}		
+	}
+	
+	override void WorldTick()
+	{
+		// Extensions Monitor - track through each list and change the toggle based on the extension cvar
+		for (int i = 0; i < dar_ExtData.Size(); i++)
+		{
+			for (int j = 0; j < PA_ExtData(dar_ExtData[i]).dar_ExtPlayerToggles.Size(); j++)
+			{
+				if (PlayerInGame[j])
+				{
+					let cnet = CVar.GetCVar(dar_cbExtToggleNames[i], players[j]);
+					if (cnet)
+					{
+						if(cnet.GetBool())
+							PA_ExtData(dar_ExtData[i]).dar_ExtPlayerToggles[j] = true;
+						else
+							PA_ExtData(dar_ExtData[i]).dar_ExtPlayerToggles[j] = false;
+					}					
+				}
+				else
+					PA_ExtData(dar_ExtData[i]).dar_ExtPlayerToggles[j] = false;
+			}
+		}
+		
+		
+		if (dar_DebugMessages.Size() > 0)
+		{
+			dar_DebugMessages.Clear();
+			dar_DebugMessageColors.Clear();
+		}
+		
+		/*
+			This loop iterates through each camera registered with this event handler.
+			It accesses the string and color arrays of each camera and copies their contents to
+			a master array here in the handler.  It then clears the arrays in each camera before
+			flipping a switch that will allow the camera to refill its debug message stacks.
+			
+			RenderOverlay handles drawing.  Every time the event is called it will iterate through
+			the contents of the master arrays, printing their contents to the screen in a vertical scroll.
+		*/
+		for (int i = 0; i < dar_DebugCams.Size(); i++) // iterate through each camera
+		{
+			if (CVar.GetCVar('pavar_CamDebug', players[PA_Camera(dar_DebugCams[i]).master.PlayerNumber()]).GetBool())
+			{
+				for (int j = 0; j < PA_Camera(dar_DebugCams[i]).dar_DebugStrings.Size(); j++) // iterate through each message
+				{
+					dar_DebugMessages.Push(PA_Camera(dar_DebugCams[i]).dar_DebugStrings[j]);	// add it to the list
+					if (j < PA_Camera(dar_DebugCams[i]).dar_DebugColors.Size())	// if there is a color at the same index, add it too
+						dar_DebugMessageColors.Push(PA_Camera(dar_DebugCams[i]).dar_DebugColors[j]);
+					else
+						dar_DebugMessageColors.Push(0); // otherwise push 0
+				}
+				dar_DebugMessages.Push("- - -");
+				dar_DebugMessageColors.Push(0);
+			}
+			PA_Camera(dar_DebugCams[i]).dar_DebugStrings.Clear();
+			PA_Camera(dar_DebugCams[i]).dar_DebugColors.Clear();
+			PA_Camera(dar_DebugCams[i]).bCanAddToDebug = true;
+		}
+		
+		/*
+			This loop does the same as the one above, but it's for extensions.
+		
+		*/
+		for (int i = 0; i < dar_DebugExtensions.Size(); i++)
+		{
+			if (CVar.GetCVar('pavar_CamDebug', players[PA_Extension_Base(dar_DebugExtensions[i]).master.PlayerNumber()]).GetBool())
+			{
+				for (int j = 0; j < PA_Extension_Base(dar_DebugExtensions[i]).dar_DebugStrings.Size(); j++)
+				{
+					dar_DebugMessages.Push(PA_Extension_Base(dar_DebugExtensions[i]).dar_DebugStrings[j]);
+					if (j < PA_Extension_Base(dar_DebugExtensions[i]).dar_DebugColors.Size())
+						dar_DebugMessageColors.Push(PA_Extension_Base(dar_DebugExtensions[i]).dar_DebugColors[j]);
+					else
+						dar_DebugMessageColors.Push(0);
+				}
+				dar_DebugMessages.Push("- - -");
+				dar_DebugMessageColors.Push(0);
+			}
+			PA_Extension_Base(dar_DebugExtensions[i]).dar_DebugStrings.Clear();
+			PA_Extension_Base(dar_DebugExtensions[i]).dar_DebugColors.Clear();
+			PA_Extension_Base(dar_DebugExtensions[i]).bCanAddToDebug = true;
+		}
+		
+		/*
+			Debug info for the handler itself
+		
+		*/
+		dar_DebugMessages.Push("DEBUG - Control Handler\n- - - - - - - - - - - -");
+		dar_DebugMessageColors.Push(0);
+		dar_DebugMessages.Push(string.Format("Loaded Extension Modules : %d", getTotalExtensions()));
+		dar_DebugMessageColors.Push(5);
+	}
+	
+	//
+	// Draws the debug text to the screen
+	//
+	override void RenderOverlay(RenderEvent e)
+	{
+		for (int i = 0; i < dar_DebugMessages.Size(); i++)
+			Screen.DrawText(Font.GetFont('confont'), dar_DebugMessageColors[i], 25.0, 20.0 * (i + 1), dar_DebugMessages[i]);
+	}
+	
+	void PushNote(uint index, string sobj, bool typ = true)
+	{
+		Console.Printf("CONTROL HANDLER: %s module with TID, %d, was registered at debug array index, %d.", sobj, typ ? PA_Camera(dar_DebugCams[index]).tid : PA_Extension_Base(dar_DebugExtensions[index]).tid, index);
+	}
+}
+

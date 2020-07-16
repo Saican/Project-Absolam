@@ -1,0 +1,316 @@
+/*
+*	Project Absolam - Player Camera
+*
+*/
+
+class PA_Camera : SecurityCamera
+{	
+	Array<string>	dar_DebugStrings;	// Strings that need pushed to the screen, not the console
+	Array<int>		dar_DebugColors;
+	bool bCanAddToDebug,
+		bHaveOriginSprite;
+	
+	float f_PitchVar,	// CVar value for the camera pitch
+		f_PitchMod,		// Current camera pitch
+		f_PitchSpeed,	// Speed of pitch movements
+		
+		f_OriginX,		// Current origin points for scrolling
+		f_OriginY,
+		f_OriginZ,
+		
+		f_AngleByte;	// Byte angle representing how much to move each interval
+		
+	int	i_AngleVar,		// CVar Angle Interval value
+		i_AngleMod;		// Current Angle Interval
+		
+	bool bCanUsePitch,	// Booleans let the update code know if it's ok to attempt
+		bCanUseSpeed,	// CVar access without safety checks because those checks
+		bCanUseOrigin;	// were done during initialization.
+		
+	PA_Camera_ControlHandler camHandler;
+		
+	Actor a_CameraOrigin;
+	Actor a_Player;
+
+	//
+	// -- Setup, gathers the starting info for the camera.
+	//
+	override void PostBeginPlay()
+	{
+		if (GetAge() < 1)
+		{	
+			bCanAddToDebug = true;
+			bHaveOriginSprite = false;
+		
+			//
+			// -- Start
+			//
+			Super.PostBeginPlay();
+			Console.Printf("CAMERA - Hi! I'm the PA Camera! My TID is, %d.  Switch over to me and let's get into position!", tid);
+			Console.Printf("CAMERA - I need to do some quick setup.  You can control my behavior from the Project Absolam menu in the Options Menu!");
+			Console.Printf("CAMERA - Ok, getting started, I'll let you know if there are any problems.  Just a second...");
+			
+			if (master)
+			{
+				a_Player = master;
+			}
+			
+			//
+			// -- Camera Handler Registration
+			//
+			camHandler = PA_Camera_ControlHandler(EventHandler.Find("PA_Camera_ControlHandler"));
+			if (camHandler)
+			{
+				uint camIndex;
+				camIndex = camHandler.dar_DebugCams.Push(self);
+				Console.Printf("CAMERA - I registered myself with the Camera Control Handler.  It should notice.");
+				camHandler.PushNote(camIndex, "Camera"); 	// Assuming insertion into the array worked, just the index should be enough for a method in the handler
+			}												// to output the camera's TID, so this is a valid test.
+			else
+				Console.Printf("CAMERA: - ERROR! - Crap...something went wrong.  I couldn't find my event handler!");
+			
+			//
+			// -- Pitch
+			//
+			CVar pitchSetting = Cvar.GetCVar('pavar_CamPitch', players[master.PlayerNumber()]);
+			if (pitchSetting)
+			{
+				f_PitchVar = pitchSetting.GetFloat();
+				Console.Printf("CAMERA - Getting the pitch I need to use...looks like it's, %f.", f_PitchVar);
+				bCanUsePitch = true;
+			}
+			else
+			{
+				f_PitchVar = 60.0;
+				Console.Printf("CAMERA: - ERROR! - Crap...something went wrong.  I couldn't find the pitch CVAR!  I'm defaulting to a pitch of, %f", f_PitchVar);
+				bCanUsePitch = false;
+			}
+				
+			f_PitchMod = 0;			
+			
+			//
+			// -- Speed
+			//
+			CVar pitchSpeed = CVar.GetCvar('pavar_CamPitchSpeed', players[master.PlayerNumber()]);
+			if (pitchSpeed)
+			{
+				f_PitchSpeed = pitchSpeed.GetFloat();
+				Console.Printf("CAMERA - Just checking my movement speed...it's, %f.", f_PitchSpeed);
+				bCanUseSpeed = true;
+			}
+			else
+			{
+				f_PitchSpeed = 0.25;
+				Console.Printf("CAMERA: - ERROR! - Crap...something went wrong.  I couldn't find the speed CVAR!  I'm defaulting to a speed of %f", f_PitchSpeed);
+				bCanUseSpeed = false;
+			}
+			
+			//
+			// Origin and Angle Interval
+			//
+			CVar originXSetting = CVar.GetCVar('pavar_CamOriginX', players[master.PlayerNumber()]);
+			CVar originZSetting = CVar.GetCVar('pavar_CamOriginZ', players[master.PlayerNumber()]);
+			CVar angleSetting = CVar.GetCVar('pavar_CamPitchLocation', players[master.PlayerNumber()]);
+			if (originXSetting && originZSetting && angleSetting)
+			{
+				f_OriginX = self.pos.x;
+				f_OriginY = self.pos.y;
+				f_OriginZ = self.pos.z + originZSetting.GetFloat();
+				i_AngleVar = angleSetting.GetInt();
+				Console.Printf("CAMERA - Ok, getting my origin points...looks like they're, X:%f Y:%f Z:%f + %f = %f, and my starting Angle Interval is, %i.", f_OriginX, f_OriginY, self.pos.z, originZSetting.GetFloat(), f_OriginZ, i_AngleVar);
+				bCanUseOrigin = true;
+			}
+			else
+			{
+				f_OriginX = self.pos.x;
+				f_OriginY = self.pos.y;
+				f_OriginZ = self.pos.z + 128.0;
+				i_AngleVar = 1;
+				Console.Printf("CAMERA: - ERROR! - Crap...something went wrong.  I couldn't find the origin CVARs!  I'm defaulting my origin points to X:%f Y:%f Z:%f + %f = %f, and my starting Angle Interval is, i%.", f_OriginX, f_OriginY, self.pos.z, 128.0, f_OriginZ, i_AngleVar);
+				bCanUseOrigin = false;
+			}
+			
+			i_AngleMod = 1;
+			f_AngleByte = 90;
+			
+			//
+			// -- Done
+			//
+			if (bCanUsePitch && bCanUseSpeed && bCanUseOrigin)
+				Console.Printf("FINISHED! - I'm done gathering information.  Remember I can be configured from the Options Menu!\n- - -");
+			else
+				Console.Printf("FINISHED...WITH ERRORS!  Oh, no...so this means I'll work but I can't be configured.  Please alert the author!  Thanks!\n- - -");
+		}
+	}
+	
+	//
+	// -- Update, sets pitch and location of the camera
+	//
+	override void Tick()
+	{
+		Super.Tick();
+		
+		// Set the Pitch, either to the master, or to the CVar
+		if (!CVar.GetCVar('pavar_AutoPitch', players[a_Player.PlayerNumber()]).GetBool())
+		{
+			_PA_SetPitch();
+			A_SetPitch(f_PitchMod);		
+		}
+		else
+			A_SetPitch(a_Player.pitch);
+		
+		// Set the Location behind the player
+		_PA_SetLocation();
+		
+		// Output the debug info if it's enabled
+		_PA_Debug();
+	}
+	
+	//
+	// -- Iterates the PitchMod variable to change the pitch of the camera actor.
+	//
+	private void _PA_SetPitch()
+	{		
+		if (bCanusePitch)
+			f_PitchVar = Cvar.GetCVar('pavar_CamPitch', players[a_Player.PlayerNumber()]).GetFloat();
+		
+		if (bCanUseSpeed)
+			f_PitchSpeed = Cvar.GetCVar('pavar_CamPitchSpeed', players[a_Player.PlayerNumber()]).GetFloat();
+			
+		if (f_PitchVar != f_PitchMod)
+		{
+			if (f_PitchVar > f_PitchMod)
+			{
+				f_PitchMod += f_PitchSpeed;
+				if (f_PitchVar < f_PitchMod)
+					f_PitchMod = f_PitchVar;
+			}
+			else
+			{
+				f_PitchMod -= f_PitchSpeed;
+				if (f_PitchVar > f_PitchMod)
+					f_PitchMod = f_PitchVar;
+			}
+		}	
+	}
+	
+	//
+	// -- Sets the Vector3 location of the camera actor and updates internal variables.
+	//
+	private void _PA_SetLocation()
+	{
+		if (CVar.GetCVar('pavar_CamConnect', players[a_Player.PlayerNumber()]).GetBool())
+		{
+			float fvar_OriginX, fvar_OriginZ;
+			int ivar_PitchLocation;
+			if (bCanuseOrigin)
+			{
+				fvar_OriginX = CVar.GetCVar('pavar_CamOriginX', players[a_Player.PlayerNumber()]).GetFloat();
+				fvar_OriginZ = CVar.GetCVar('pavar_CamOriginZ', players[a_Player.PlayerNumber()]).GetFloat();
+			}
+			else
+			{
+				fvar_OriginX = 128.0;
+				fvar_OriginZ = 128.0;
+				ivar_PitchLocation = 1;
+			}
+			
+			f_OriginX = a_Player.pos.x - Cos(a_Player.angle) * fvar_OriginX;
+			f_OriginY = a_Player.pos.y - Sin(a_Player.angle) * fvar_OriginX;
+			f_OriginZ = a_Player.pos.z + PA_Player(a_Player).CamOriginZ + fvar_OriginZ;
+			
+			// Establishes a value between 1 and 10 for i_AngleMod
+			if (i_AngleVar <= 10)
+				i_AngleMod = i_AngleVar;
+			else
+				i_AngleMod = i_AngleVar - (2 * (i_AngleVar - 10));
+			
+			float zAngle = f_AngleByte - ((i_AngleVar - 1) * 10);
+			Vector3 newCamVec = (f_OriginX - Cos(a_Player.angle) * ((fvar_OriginX / 10) * (i_AngleMod  - 1)), 
+						f_OriginY - Sin(a_Player.angle) * ((fvar_OriginX / 10) * (i_AngleMod  - 1)), 
+						f_OriginZ - Sin(zAngle) * fvar_OriginZ);
+			
+			SetOrigin(newCamVec, false);
+			self.angle = a_Player.angle;
+		}
+	}
+	
+	//
+	// -- Debug driver for the camera.  Handles creation/destruction of the Origin Sprite (the red dot),
+	// -- the ability to see the camera sprite, and what text is sent to the screen.
+	// -- The Origin Sprite has debug output which is handled by this method, passing it to the Handler
+	//
+	private void _PA_Debug()
+	{
+		// Controls for the Origin Sprite
+		if (CVar.GetCVar('pavar_CamDebug', players[a_Player.PlayerNumber()]).GetBool())
+		{
+			if (!bHaveOriginSprite)
+			{
+				bHaveOriginSprite = true;
+				A_SpawnItemEx("PA_CameraOrigin", 0.0, 0.0, Cvar.GetCVar('pavar_CamOriginZ', players[a_Player.PlayerNumber()]).GetFloat(), 0.0, 0.0, 0.0, 0.0, SXF_SETMASTER | SXF_ISTARGET, 0, 0);
+				A_SetRenderStyle(1.0, STYLE_Normal);
+			}	
+		}
+		else if (bHaveOriginSprite)
+		{
+			bHaveOriginSprite = false;
+			A_Remove(AAPTR_TARGET, RMVF_EVERYTHING, "PA_CameraOrigin");
+			A_SetRenderStyle(1.0, STYLE_None);
+		}
+		
+		// Debug messages are added here
+		if (bCanAddToDebug)
+		{
+			_PA_Debug_Message(string.Format("DEBUG - Camera TID: %d\n- - -", self.tid), 0);
+			_PA_Debug_Message(string.Format("Auto Pitch          : %s", CVar.GetCVar('pavar_AutoPitch', players[a_Player.PlayerNumber()]).GetBool() ? "On" : "Off"), CVar.GetCVar('pavar_AutoPitch', players[a_Player.PlayerNumber()]).GetBool() ? 8 : 3);
+			_PA_Debug_Message(string.Format("Camera Connection   : %s", CVar.GetCVar('pavar_CamConnect', players[a_Player.PlayerNumber()]).GetBool() ? "On" : "Off"), CVar.GetCVar('pavar_CamConnect', players[a_Player.PlayerNumber()]).GetBool() ? 3 : 8);
+			_PA_Debug_Message(string.Format("First-Person Toggle : %s", CVar.GetCVar('pavar_FrstCam', players[a_Player.PlayerNumber()]).GetBool() ? "On" : "Off"), CVar.GetCVar('pavar_FrstCam', players[a_Player.PlayerNumber()]).GetBool() ? 8 : 3);
+			_PA_Debug_Message("- - -", 0);
+			_PA_Debug_Message(string.Format("Camera Position X : %f", self.pos.x), 4);
+			_PA_Debug_Message(string.Format("Camera Position Y : %f", self.pos.y), 4);
+			_PA_Debug_Message(string.Format("Camera Position Z : %f", self.pos.z), 4);
+			_PA_Debug_Message("- - -", 0);
+			_PA_Debug_Message(string.Format("Origin Point X : %f", f_OriginX), 3);
+			_PA_Debug_Message(string.Format("Origin Point Y : %f", f_OriginY), 3);
+			_PA_Debug_Message(string.Format("Origin Point Z : %f", f_OriginZ), 3);
+			_PA_Debug_Message(string.Format("Radius X/Y     : %f", CVar.GetCVar('pavar_CamOriginX', players[a_Player.PlayerNumber()]).GetFloat()), 3);
+			_PA_Debug_Message(string.Format("Radius Z       : %f", CVar.GetCVar('pavar_CamOriginZ', players[a_Player.PlayerNumber()]).GetFloat()), 3);
+			_PA_Debug_Message(string.Format("Angle Interval : %d", CVar.GetCVar('pavar_CamPitchLocation', players[a_Player.PlayerNumber()]).GetInt()), 3);
+			_PA_Debug_Message(string.Format("Internal Angle Interval : %d", i_AngleMod), 3);
+			_PA_Debug_Message("- - -", 0);
+			
+			// Debug messages from the Origin Sprite
+			if (PA_CameraOrigin(a_CameraOrigin))
+			{
+				for (int i = 0; i < PA_CameraOrigin(a_CameraOrigin).dar_DebugStrings.Size(); i++)
+					_PA_Debug_Message(PA_CameraOrigin(a_CameraOrigin).dar_DebugStrings[i], PA_CameraOrigin(a_CameraOrigin).dar_DebugColors[i]);
+				
+				PA_CameraOrigin(a_CameraOrigin).dar_DebugStrings.Clear();
+				PA_CameraOrigin(a_CameraOrigin).dar_DebugColors.Clear();
+				PA_CameraOrigin(a_CameraOrigin).bCanAddToDebug = true;
+			}
+			bCanAddToDebug = false;
+		}
+	}
+	
+	//
+	// -- This is how a debug message makes it onto the screen.
+	// -- The string argument is the text, the int is the text color.
+	//
+	private void _PA_Debug_Message(string message, int color)
+	{
+		dar_DebugStrings.Push(message);
+		dar_DebugColors.Push(color);
+	}
+	
+	//
+	// This Camera has a sprite!  It's toggled through the debug option
+	//
+	States
+	{
+		Spawn:
+			CAMR A -1;
+			stop;
+	}
+}

@@ -1,0 +1,14 @@
+/*
+*	Project Absolam - Extension Base Code
+*	Project Extension Modules should inherit from this class - assuming they are actors
+*
+*/
+
+class PA_Extension_Base : Actor abstract
+{
+	Array<string>	dar_DebugStrings;	// Strings that need pushed to the screen, not the console
+	Array<int>		dar_DebugColors;
+	bool bCanAddToDebug;
+	Actor a_Player;		// This needs to stay an Actor so that code casts to the right descendent
+	PA_Camera_ControlHandler camHandler;
+}

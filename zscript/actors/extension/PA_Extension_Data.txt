@@ -1,0 +1,16 @@
+/*
+*	Project Absolam - Extension Data Information Class
+*	This is how an extension relays global information to the Control Handler
+*
+*/
+
+class PA_ExtData
+{
+	Array<bool> dar_ExtPlayerToggles;
+	Array<string> dar_VArgs;
+}
+
+class PA_ExtData_Varg
+{
+	Array<string> dar_VArgs;
+}

@@ -1,0 +1,11 @@
+MAGIC NUMBERS - IF YOU ARE AT THAT POINT WHERE YOU NEED A MAGIC NUMBER, CHECK THIS LIST FOR HARDCODED MN's
+
+MN	--	type	--	description		-- notes
+-------------------------------------------
+-------------------------------------------
+3113	-- 	thing	--	PA Camera	-- PlayerNumber is added to this number
+
+
+CREDITS:
+
+Code: m8f - Tips for menus (modifed for Option Menus and incorporated)

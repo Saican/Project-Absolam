@@ -1,0 +1,6 @@
+gameinfo
+{
+	playerclasses = "PA_Player"
+	EventHandlers = "PA_Camera_ControlHandler"
+}
+

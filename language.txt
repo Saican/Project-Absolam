@@ -1,0 +1,38 @@
+[enu default]
+
+OPTMNU_PACAMERA = "Project Absolam Camera Customization";
+
+PACAMERAMNU_TITLE = "Project Absolam Camera Options";
+
+// Category Headings
+PACAMERAMNU_TITLE_PITCH = "Camera Pitch Options";
+PACAMERAMNU_TITLE_CONTROLS = "Camera Control Options";
+PACAMERAMNU_TITLE_MISC = "Miscellaneous Options";
+
+PACAMERAMNU_PITCH_AUTOPITCH = "Auto Pitch";
+PACAMERAMNU_PITCH_CAMERAPITCH = "Camera Pitch";
+PACAMERAMNU_PITCH_PITCHSPEED = "Pitch Speed";
+PACAMERAMNU_PITCH_ORIGINXY = "Camera Origin Radius X/Y";
+PACAMERAMNU_PITCH_ORIGINZ = "Camera Origin Radius Z";
+
+PACAMERAMNU_CONTROLS_INCREMENT = "Current Pitch Increment";
+PACAMERAMNU_CONTROLS_INCREMENT_BINDUP = "Move Pitch Up";
+PACAMERAMNU_CONTROLS_INCREMENT_BINDDWN = "Move Pitch Down";
+
+PACAMERAMNU_MISC_CAMERACONNECTION = "Camera Connection Toggle";
+PACAMERAMNU_MISC_CAMERACONNECTION_BIND = "Optional Connection Bind";
+PACAMERAMNU_MISC_FIRSTPERSONTOGGLE = "First-Person Toggle";
+PACAMERAMNU_MISC_FIRSTPERSONTOGGLE_BIND = "Optional First-Person Bind";
+PACAMERAMNU_MISC_DEBUG = "Debug Output Toggle";
+
+
+// Tootips
+PACAMERAMNU_TOOLTIP_AUTOPITCH = "Toggling the Auto Pitch control will enable the camera\nto automatically look where the player looks.\nThe camera automatically adheres to axis inversion settings.";
+PACAMERAMNU_TOOLTIP_CAMERAPITCH = "Camera Pitch is the angle at which the view will be aimed, vertically.\nA value of zero (0) means the camera is looking parallel to the ground.\nPositive values aim the camera down, and negative up.";
+PACAMERAMNU_TOOLTIP_PITCHSPEED = "Pitch Speed determines how fast the camera will make changes to its pitch.";
+PACAMERAMNU_TOOLTIP_ORIGINXYZ = "Camera Origin Radii control the distance from the player that is calculated\nfor the camera's origin of rotation.";
+PACAMERAMNU_TOOLTIP_INCREMENT = "The Current Pitch Increment represents how many increments along the pitch\nadjustment arc the camera is offset by.\nPlayers can use this slider to just set a position and skip the keybinds.";
+PACAMERAMNU_TOOLTIP_INCREMENT_BIND = "Pitch Keybinds allow players to scroll the camera in and out incrementally.\nPgUp-PgDwn, [ - ], and the middle mouse wheel are excellent binds.";
+PACAMERAMNU_TOOLTIP_CAMERACONNECTION = "The Camera Connection toggle and keybind allow the player to completely halt\nthe camera connection logic.  It can also be restarted at will\nand will pick up right where it left off.  This can be handy for screenshots.";
+PACAMERAMNU_TOOLTIP_FIRSTPERSONTOGGLE = "The First-Person toggle and keybind allow the player to switch back to the\ndefault view.  The camera and its components will continue on behind\nthe player.  This can be mixed with the Camera Connection as well for screenshots.";
+PACAMERAMNU_TOOLTIP_DEBUG = "Debug toggle the debug to get rid of the bugs that are bugging up code\nthat must be bug free so we debug and have debug output so that we can\ndebug the bugs that are bugging up the buggingly buggy that must be bugfree code.";

@@ -1,0 +1,9 @@
+version "4.2.1"
+#include "zscript/actors/character/player/PA_Player.txt"
+#include "zscript/actors/character/player/PA_Camera.txt"
+#include "zscript/actors/character/player/PA_CameraOrigin.txt"
+#include "zscript/actors/character/player/PA_Camera_ControlHandler.txt"
+
+#include "zscript/actors/extension/PA_Extension_Base.txt"
+#include "zscript/actors/extension/PA_Extension_Data.txt"
+#include "zscript/actors/extension/PA_Extension_Util.txt"

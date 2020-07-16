@@ -1,0 +1,14 @@
+// Camera
+user float pavar_CamPitch = 60.0;
+user float pavar_CamPitchSpeed = 0.25;
+user float pavar_CamOriginX = 128.0;
+user float pavar_CamOriginZ = 128.0;
+user int pavar_CamPitchLocation = 1;
+user bool pavar_CamDebug = false;
+user bool pavar_CamConnect = true;
+user bool pavar_FrstCam = false;
+user bool pavar_AutoPitch = false;
+
+// Extensions
+user bool pavar_UseExtensions = true;
+

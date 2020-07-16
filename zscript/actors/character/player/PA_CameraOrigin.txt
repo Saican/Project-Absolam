@@ -1,0 +1,59 @@
+/*
+*	Project Absolam - Player Camera Origin Object
+*
+*/
+
+class PA_CameraOrigin : PA_Extension_Base
+{	
+	Actor a_Camera;
+	
+	Default
+	{
+	  +NOGRAVITY
+	}
+
+	override void PostBeginPlay()
+	{
+		Console.Printf("CAMERA ORIGIN SPRITE - Hello! I'm a visual indication of the camera's origin point.\nCAMERA ORIGIN SPRITE - I'll add my location data to the debug message stack.\n- - -");
+		if (master)
+		{
+			a_Camera = master;
+			a_Player = master.master;
+			
+			PA_Camera(a_Camera).a_CameraOrigin = self;
+		}
+		bCanAddToDebug = true;
+	}
+	
+	override void Tick()
+	{
+		if (a_Player)
+		{
+			if (CVar.GetCVar('pavar_CamConnect', players[a_Player.PlayerNumber()]).GetBool())
+				SetOrigin(a_Player.pos+(-Cos(a_Player.angle)*Cvar.GetCVar('pavar_CamOriginX', players[a_Player.PlayerNumber()]).GetFloat(), 
+								-Sin(a_Player.angle)*Cvar.GetCVar('pavar_CamOriginX', players[a_Player.PlayerNumber()]).GetFloat(), 
+								PA_Player(a_Player).CamOriginZ + CVar.GetCVar('pavar_CamOriginZ', players[master.PlayerNumber()]).GetFloat()), 
+								true);
+			
+			if (bCanAddToDebug)
+			{
+				dar_DebugStrings.Push(string.Format("Camera Origin Sprite X : %f", self.pos.x));
+				dar_DebugStrings.Push(string.Format("Camera Origin Sprite Y : %f", self.pos.y));
+				dar_DebugStrings.Push(string.Format("Camera Origin Sprite Z : %f", self.pos.z));
+				dar_DebugStrings.Push("- - -");
+				dar_DebugColors.Push(5);
+				dar_DebugColors.Push(5);
+				dar_DebugColors.Push(5);
+				dar_DebugColors.Push(0);
+				bCanAddToDebug = false;
+			}
+		}
+	}
+	
+	States
+	{
+		Spawn:
+			MODL A -1;
+			stop;
+	}
+}
