@@ -9,3 +9,6 @@ The Reticule System Extension
 ## Extension Module
 - Prototypes how modules extend the functionality of Project Absolam
 - Contains interfaces for modded monsters and weapons
+
+## Note about Github Content
+- This is only the source code to the Reticule, you must download the complete package from [here]().
