@@ -1,0 +1,11 @@
+// Crosshair
+user bool pavar_Ext_UseCrosshair = true;
+user bool pavar_Ext_Crosshair_DestroyLock = false;
+user float pavar_Ext_Crosshair_TargetAngleTolerance = 10.0;
+user bool pavar_Ext_Crosshair_iWadDetect = true;
+user bool pavar_Ext_Crosshair_ProjectileLeading = true;
+user int pavar_Ext_Crosshair_SearchDistance = 256;
+user int pavar_Ext_Crosshair_SearchDivsor = 16;
+user bool pavar_Ext_Crosshair_PlayerSync = false;
+user bool pavar_Ext_Crosshair_DebugTargetting = false;
+user float pavar_Ext_Crosshair_ActorPoints = 8.0;

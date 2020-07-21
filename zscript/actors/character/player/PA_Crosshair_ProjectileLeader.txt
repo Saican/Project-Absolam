@@ -1,0 +1,162 @@
+/*
+*	Project Absolam - Player Crosshair Projectile Leader
+*
+*	The visual objects that lead the player's aiming when using projectile weapons
+*
+*	Positioning code is portal aware.
+*
+*/
+
+class PA_CrosshairProjectileLeader : Actor
+{
+	Default
+	{
+	  +NOGRAVITY
+	}
+	
+	bool bDestroyed;
+	bool bLead;
+	Actor a_Player;
+	Actor a_Crosshair;
+	Actor a_Partner;
+	
+	override void PostBeginPlay()
+	{
+		if (GetAge() < 1)
+		{
+			bDestroyed = false;
+			bLead = true;
+			Super.PostBeginPlay();
+			if (master)
+			{
+				a_Crosshair = master;
+			}
+		}
+	}
+	
+	override void Tick()
+	{
+		Super.Tick();
+		
+		if (bDestroyed)
+			self.Destroy();
+		
+		if (bLead && a_Crosshair.target != null)
+		{
+			bool bVanilla;
+			int iDataIndex;
+			float fMonsterSpeed, fProjectileSpeed;
+			
+			// Determine if the weapon is vanilla or a mod
+			// If the weapon is vanilla, it's info is stored in the crosshair dar_WeaponData array.
+			// If its a mod, and it inherits from Weapon Util, then the properties have the info.
+			// Otherwise, it's foreign.
+			[bVanilla, iDataIndex, fProjectileSpeed] = PA_Crosshair(a_Crosshair).PA_IsWeaponVanilla();
+			// If it is vanilla, everything is set
+			if (!bVanilla)
+			{
+				[bVanilla, iDataIndex, fProjectileSpeed] = PA_Crosshair(a_Crosshair).PA_IsWeaponAncestorVanilla();
+				// Again if it comes back true then everything is set
+				// If not, then check that it's a valid mod weapon and get the projectile speed from it.
+				if (!bVanilla && ((players[a_Player.PlayerNumber()].ReadyWeapon is "PA_WeaponUtil") ? (PA_WeaponUtil(players[a_Player.PlayerNumber()].ReadyWeapon).ProjectileWeapon) : false))
+					fProjectileSpeed = PA_WeaponUtil(players[a_Player.PlayerNumber()].ReadyWeapon).Projectile_Speed;
+				else
+					fProjectileSpeed = 0;
+			}
+			
+			//
+			// Monsters
+			//
+			[bVanilla, iDataIndex, fMonsterSpeed] = PA_Crosshair(a_Crosshair).PA_IsTargetVanilla();
+			// Determine if the monster is vanilla or a mod
+			if (bVanilla)
+				_PA_SetLocation(true, fMonsterSpeed, fProjectileSpeed);
+			// It's a mod
+			else
+			{
+				// Ok, does it inhereit from the Monster Util class?
+				if (a_Crosshair.target is "PA_MonsterUtil")
+					_PA_SetLocation(true, PA_MonsterUtil(a_Crosshair.target).TickSpeed, fProjectileSpeed);
+				// No, see if it inhereits from a vanilla monster or is completely foreign.
+				else
+				{
+					[bVanilla, iDataIndex, fMonsterSpeed] = PA_Crosshair(a_Crosshair).PA_IsModdedAncestorVanilla();
+					if (bVanilla)
+						_PA_SetLocation(true, fMonsterSpeed, fProjectileSpeed);
+					else
+						_PA_SetLocation(false);
+				}
+			}
+		}
+		else
+			_PA_SetLocation(false);
+	}
+	
+	// Why we no have this native????
+	private float _PA_ClampAngle(float ang)
+	{
+		return ang - ((int(ang) / 360) * (360 * (ang >= 360 || ang <= -360)));
+	}
+	
+	private void _PA_SetLocation(bool loc, float ms = 0, float ps = 0)
+	{
+		// All of this figures out where the lead pointer should be
+		if (loc && ps > 0)
+		{	
+			// First calculate the lead distance from the monster and establish a vector (lv)
+			float d = ms * (Level.Vec3Diff(a_Player.pos, a_Crosshair.target.pos).Length() / ps);
+			let lv = a_Crosshair.target.pos + (cos(_PA_ClampAngle(a_Crosshair.target.angle)) * d,
+											   sin(_PA_ClampAngle(a_Crosshair.target.angle)) * d, 0);
+			
+			// Now get the vector and magnitude of the player to lv
+			let playerLeadPointVector = Level.Vec3Diff(a_Player.pos, lv);
+			let playerLeadPointMag = playerLeadPointVector.Length();
+			
+			// Also need the same for the player and reticule
+			let playerRetVector = Level.Vec3Diff(a_Player.pos, a_Partner.pos);
+			let playerRetMag = playerRetVector.Length();
+			
+			// Calculate the angle
+			let ang = acos((playerLeadPointVector dot playerRetVector) / (playerLeadPointMag * playerRetMag));
+			
+			// Do the horizon point thing but in reverse - this time the points are on the player
+			let sideways = (-sin(a_Player.angle), cos(a_Player.angle), 0);
+			let playerHorizonLeft = Level.Vec3Offset(a_Player.pos, a_Player.radius * sideways);
+			let playerHorizonRight = Level.Vec3Offset(a_Player.pos, -1 * a_Player.radius * sideways);
+									
+			let leftHorizonLength = Level.Vec3Diff(playerHorizonLeft, a_Crosshair.target.pos).Length();
+			let rightHorizonLength = Level.Vec3Diff(playerHorizonRight, a_Crosshair.target.pos).Length();
+			
+			// If the left length is longer, the monster is to the right and vice versa, this just results in a sign flip
+			if (leftHorizonLength > rightHorizonLength)
+				SetOrigin(a_Player.pos + (cos(a_Player.angle - ang) * PA_Crosshair(a_Crosshair).iSearchDistance, 
+										sin(a_Player.angle - ang) * PA_Crosshair(a_Crosshair).iSearchDistance, 0), true);
+			else
+				SetOrigin(a_Player.pos + (cos(a_Player.angle + ang) * PA_Crosshair(a_Crosshair).iSearchDistance, 
+										sin(a_Player.angle + ang) * PA_Crosshair(a_Crosshair).iSearchDistance, 0), true);
+		}
+		// Default position/reticule location
+		else
+			SetOrigin(a_Player.pos + (Cos(a_Player.angle) * PA_Crosshair(a_Crosshair).iSearchDistance,
+									Sin(a_Player.angle) * PA_Crosshair(a_Crosshair).iSearchDistance, 0), true);	
+	}
+	
+	States
+	{
+		Spawn:
+			MODL A -1;
+			stop;
+	}
+}
+
+class PA_CrosshairProjectileLeader_Point : PA_CrosshairProjectileLeader
+{
+	override void PostBeginPlay()
+	{
+		if (GetAge() < 1)
+		{
+			Super.PostBeginPlay();
+			bLead = false;
+		}
+	}
+}

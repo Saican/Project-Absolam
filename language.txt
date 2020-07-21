@@ -1,0 +1,23 @@
+[enu default]
+
+OPTMNU_PACROSSHAIR = "Project Absolam Crosshair Customization";
+
+PAEXT_RETMNU_TITLE = "Project Absolam Crosshair Options";
+
+PAEXT_RETMNU_TOGGLE = "Crosshair Toggle";
+PAEXT_RETMNU_LOCK = "Lock Target Until Destroyed";
+PAEXT_RETMNU_TOLERANCE = "Target Angle Tolerance";
+PAEXT_RETMNU_LEADING = "Projectile Weapon Target Leading";
+PAEXT_RETMNU_IWADDETECT = "Detect iWad Projectile Weapons";
+PAEXT_RETMNU_RADIUS = "Target Search Radius";
+PAEXT_RETMNU_PLAYERSYNC = "Player Target Sycronization";
+PAEXT_RETMNU_TARGETDEBUG = "Targetting Visual Debug Markers";
+
+PAEXT_RETMNU_TOOLTIP_TOGGLE = "This has to be on for the crosshair to function.";
+PAEXT_RETMNU_TOOLTIP_LOCK = "When enabled, the selected target must be destroyed\nbefore the crosshair will move on to another target.";
+PAEXT_RETMNU_TOOLTIP_TOLERANCE = "How many degrees the player's angle must differ\nfrom the current target before the crosshair may\nswitch to another valid target.";
+PAEXT_RETMNU_TOOLTIP_LEADING = "Predictive leading calculations are done to\ndisplay a second reticule showing where the\nplayer should aim to hit a moving target with\na projectile weapon.";
+PAEXT_RETMNU_TOOLTIP_IWADDETECT = "Turn this off only if the game is not using an iWad.";
+PAEXT_RETMNU_TOOLTIP_RADIUS = "How many map units from the player the system\nwill search to for targets.";
+PAEXT_RETMNU_TOOLTIP_PLAYERSYNC = "Enable to have the crosshair's target sycronized with the player's.\nLargely overrides the search radius.";
+PAEXT_RETMNU_TOOLTIP_TARGETDEBUG = "When enabled, a number of visual points will be\nspawned into existence to aid in debugging.";

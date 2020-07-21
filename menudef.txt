@@ -1,0 +1,23 @@
+AddOptionMenu "PAOptions"
+{
+	TLTPSubMenu "$OPTMNU_PACROSSHAIR", "Options for tweaking the functionality of the crosshair.", "White", "PAExtCrosshairOptionsMenu"
+}
+
+OptionMenu "PAExtCrosshairOptionsMenu"
+{
+	Class "TLTPOptionsMenu"
+	Title "$PAEXT_RETMNU_TITLE"
+	Position -32
+	
+	StaticText ""
+	
+	TLTPOption "$PAEXT_RETMNU_TOGGLE", 		"$PAEXT_RETMNU_TOOLTIP_TOGGLE", 		"White", "pavar_Ext_UseCrosshair", "OnOff"
+	TLTPOption "$PAEXT_RETMNU_LOCK", 		"$PAEXT_RETMNU_TOOLTIP_LOCK", 			"White", "pavar_Ext_Crosshair_DestroyLock", "OnOff"
+	TLTPSlider "$PAEXT_RETMNU_TOLERANCE", 	"$PAEXT_RETMNU_TOOLTIP_TOLERANCE", 		"White", "pavar_Ext_Crosshair_TargetAngleTolerance", 10.0, 30.0, 0.25, 2
+	TLTPOption "$PAEXT_RETMNU_LEADING", 	"$PAEXT_RETMNU_TOOLTIP_LEADING", 		"White", "pavar_Ext_Crosshair_ProjectileLeading", "OnOff"
+	TLTPOption "$PAEXT_RETMNU_IWADDETECT", 	"$PAEXT_RETMNU_TOOLTIP_IWADDETECT", 	"White", "pavar_Ext_Crosshair_iWadDetect", "OnOff"
+	TLTPSlider "$PAEXT_RETMNU_RADIUS", 		"$PAEXT_RETMNU_TOOLTIP_RADIUS", 		"White", "pavar_Ext_Crosshair_SearchDistance", 128, 1024, 1, 0
+	TLTPOption "$PAEXT_RETMNU_PLAYERSYNC", 	"$PAEXT_RETMNU_TOOLTIP_PLAYERSYNC", 	"White", "pavar_Ext_Crosshair_PlayerSync", "OnOff"
+	StaticText ""
+	TLTPOption "$PAEXT_RETMNU_TARGETDEBUG",	"$PAEXT_RETMNU_TOOLTIP_TARGETDEBUG", 	"White", "pavar_Ext_Crosshair_DebugTargetting", "OnOff"
+}

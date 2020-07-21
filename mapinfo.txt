@@ -1,0 +1,4 @@
+gameinfo
+{
+	AddEventHandlers = "PA_Crosshair_Registrar"
+}

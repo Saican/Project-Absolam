@@ -1,0 +1,6 @@
+version "4.2.1"
+#include "zscript/actors/character/player/PA_Crosshair.txt"
+#include "zscript/actors/character/player/PA_Crosshair_DebugPoints.txt"
+#include "zscript/actors/character/player/PA_Crosshair_MonsterUtil.txt"
+#include "zscript/actors/character/player/PA_Crosshair_ProjectileLeader.txt"
+#include "zscript/actors/character/player/PA_Crosshair_WeaponUtil.txt"

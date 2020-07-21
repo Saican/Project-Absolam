@@ -1,0 +1,129 @@
+/*
+*	Project Absolam - Player Crosshair Debug Points
+*
+*	These objects are interrelated - the PA_ActorRadiusPoint is a
+*	descendent of PA_CrosshairDebugPoint
+*
+*/
+
+class PA_CrosshairDebugPoint : Actor
+{
+	Default
+	{
+	  +NOGRAVITY
+	}
+	
+	bool bDestroyed,
+		bHit;
+	float fInterval;
+	Actor a_Player;
+	
+	override void PostBeginPlay()
+	{
+		if (GetAge() < 1)
+		{
+			bDestroyed = false;
+			bHit = false;
+			Super.PostBeginPlay();
+			if (master)
+				PA_Crosshair(master).RegisterDebugPoint(self);
+		}
+	}
+	
+	override void Tick()
+	{
+		Super.Tick();
+		
+		if (bDestroyed && PA_Crosshair(master).bCanPurgePoints)
+			self.Destroy();
+		
+		if (a_Player)
+		{
+			SetOrigin(a_Player.pos + (Cos(a_Player.angle) * fInterval,
+									Sin(a_Player.angle) * fInterval,
+									0), true);			
+		}
+	}
+	
+	States
+	{
+		Spawn:
+			PARP A -1;
+			stop;
+		Checking:
+			PARP B 3;
+			goto Spawn;
+		Hit:
+			PARP C -1;
+			stop;
+	}
+}
+
+class PA_ActorRadiusPoint : PA_CrosshairDebugPoint
+{
+	Actor a_Owner;
+	
+	override void PostBeginPlay()
+	{
+		if (GetAge() < 1)
+			Super.PostBeginPlay();
+	}
+	
+	override void Tick()
+	{
+		Super.Tick();
+
+		if (a_Owner)
+		{
+			SetOrigin(a_Owner.pos + (Cos(a_Owner.angle + fInterval) * a_Owner.radius,
+									Sin(a_Owner.angle + fInterval) * a_Owner.radius,
+									0), true);
+		}
+	}
+	
+	States
+	{
+		Spawn:
+			PAAR A -1;
+			stop;
+	}
+}
+
+class PA_ActorHorizonPoint : PA_ActorRadiusPoint
+{
+	override void PostBeginPlay()
+	{
+		if (GetAge() < 1)
+		{
+			Super.PostBeginPlay();
+		}
+	}
+	
+	override void Tick()
+	{
+		Super.Tick();
+		
+		if (a_Owner && a_Player)
+		{
+			bool bSeen = PA_Player(a_Player).PA_CheckSight(a_Owner);
+			
+			if (bSeen)
+			{
+				// Thanks to KeksDose for this - just a bit of tweaking for my needs
+				// This code is not portal aware because the point is right next to the actor
+				let sideways = (-sin(a_Player.angle), cos(a_Player.angle), 0);
+				let horizon_pos = a_Owner.pos + (a_Owner.radius * fInterval) * sideways;
+				SetOrigin(horizon_pos, true);
+			}
+			else
+				SetOrigin(a_Owner.pos, true);
+		}
+	}
+	
+	States
+	{
+		Spawn:
+			PAAH A -1;
+			stop;
+	}
+}

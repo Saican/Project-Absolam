@@ -1,0 +1,33 @@
+/*
+*	PA_MonsterUtil works basically the same as PA_WeaponUtil.
+*	Monsters need to inherit from this class in order for the
+*	TickSpeed property to be available.
+*
+*	What is TickSpeed?  Since monster speed is a combination
+*	of their Speed property and number of calls to A_Chase,
+*	the actual number of map units the monster will traverse
+*	per tic can be calculated as S / D.
+*	
+*	S = speed property of the monster
+*	D = frame duration of A_Chase
+*
+*	For example, the Arachnotron has a Speed of 12 and the
+*	frame duration of each call to A_Chase is 3, which means
+*	the TickSpeed is 4.
+*
+*	What about Fast Monsters?  This is a property multiplier,
+*	iirc speed is simply doubled, which means the TickSpeed
+*	will be as well, however that is handled by the crosshair
+*	and only the base TickSpeed needs supplied.
+*
+*/
+class PA_MonsterUtil : actor abstract
+{
+	uint TickSpeed;
+	property TickSpeed: TickSpeed;
+	
+	Default
+	{
+		PA_MonsterUtil.TickSpeed 0;
+	}
+}

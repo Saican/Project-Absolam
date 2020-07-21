@@ -1,0 +1,652 @@
+/*
+*	Project Absolam - Crosshair
+*
+*/
+
+// The crosshair is an extension, therefore it must register with the Control Handler.
+class PA_Crosshair_Registrar : EventHandler
+{
+	override void OnRegister()
+	{
+		string eversion = "0.1";
+		Console.Printf(string.Format("CROSSHAIR REGISTRAR - Hello, I'm the Project Absolam Crosshair Extension, v%s, Handling Registrar.\nNow registering this extension with the Control Handler.  Please Standby...\n- - -", eversion));		
+		//Send the event name, the extension's "nice name", the actor name, and the toggle CVar (must be boolean!!), each separated by a colon ( : )
+		SendNetworkEvent(string.Format("RegisterExtension:Project Absolam Crosshair Extension v%s:PA_Crosshair:pavar_Ext_UseCrosshair", eversion));
+	}
+}
+
+// This is a utility class used internally by the crosshair
+class _PA_iWadActorData
+{
+	string sClassName;
+	float fTickSpeed;
+	
+	_PA_iWadActorData Init(string className, float tickSpeed)
+	{
+		sClassName = className;
+		fTickSpeed = tickSpeed;
+		return self;
+	}
+}
+
+// This is the actual class implementation
+class PA_Crosshair : PA_Extension_Base
+{	
+	bool bDestroyLock,
+		bLeadProjectile,
+		bHaveLeaderReticule,
+		bSyncPlayer,
+		bCanMonitor,
+		bTargettingDebug,
+		bHaveTargettingPoints,
+		bCanPurgePoints,
+		bRestartDebugPoints;
+	float fTargetTolerance;
+	int iSearchDistance,
+		iSearchDivisor;
+		
+	private Array<PA_CrosshairDebugPoint> dar_TargetPoints;
+	void RegisterDebugPoint(PA_CrosshairDebugPoint cdp) { if (cdp != null) dar_TargetPoints.Push(cdp); }
+	
+	/*
+		Since ThinkerIterators are expensive on processing time, this 
+		array is populated with actors that have their bIsMonster flag
+		set to true.  In theory this should reduce overhead in searching 
+		for targets because invalid actors have already been eliminated.
+		This is further augmented by the search logic, which searches 
+		only when it needs to.
+		
+		What can destroy this are maps where all or the majority of
+		actors are monsters.
+	
+	*/
+	private Array<Actor> dar_LevelMonsters;
+	private void _PA_PopulateMonsterList()
+	{	
+		Console.Printf("CROSSHAIR - Starting Actor Targetting Search.  This may take some time, please stand by...");
+		
+		if (bRestartDebugPoints)
+			dar_LevelMonsters.Clear();
+		
+		ThinkerIterator targetFinder = ThinkerIterator.Create("Actor", STAT_DEFAULT);
+		Actor mo;
+		int iLvlCount = 0;
+		while (mo = Actor(targetFinder.Next())) // Iterate through every actor
+		{
+			if (mo.bIsMonster)
+				dar_LevelMonsters.Push(mo);
+			iLvlCount++;
+		}
+		
+		Console.Printf(string.Format("CROSSHAIR - Finished Actor Targetting Search.  Iterated through %d actors, %d of which are monsters.", iLvlCount, dar_LevelMonsters.Size()));
+	}
+	
+	/*
+		Projectile Leading System
+	
+	*/
+	private Actor a_LeaderReticule;
+	private Actor a_LeaderPoint;
+	private Array<string> dar_ProjectileNames;
+	
+	// Vanilla Monster Data
+	private Array<_PA_iWadActorData> dar_MonsterData;
+	bool, int, float PA_IsTargetVanilla()
+	{
+		for (int i = 0; i < dar_MonsterData.Size(); i++)
+		{
+			if (dar_MonsterData[i].sClassName == target.GetClassName())
+				return true, i, dar_MonsterData[i].fTickSpeed;
+		}
+	
+		return false, -1, 0;
+	}
+	
+	bool, int, float PA_IsModdedAncestorVanilla()
+	{
+		for (int i = 0; i < dar_MonsterData.Size(); i++)
+		{
+			if (target is dar_MonsterData[i].sClassName)
+				return true, i, dar_MonsterData[i].fTickSpeed;
+		}
+		
+		return false, -1, 0;
+	}
+	
+	// Vanilla Weapon Data
+	private Array<_PA_iWadActorData> dar_WeaponData;
+	bool, int, float PA_IsWeaponVanilla()
+	{
+		for (int i = 0; i < dar_WeaponData.Size(); i++)
+		{
+			if (dar_WeaponData[i].sClassName == players[a_Player.PlayerNumber()].ReadyWeapon.GetClassName())
+				return true, i, dar_WeaponData[i].fTickSpeed;
+		}
+		
+		return false, -1, 0;
+	}
+	
+	bool, int, float PA_IsWeaponAncestorVanilla()
+	{
+		for (int i = 0; i < dar_WeaponData.Size(); i++)
+		{
+			if (players[a_Player.PlayerNumber()].ReadyWeapon is dar_WeaponData[i].sClassName)
+				return true, i, dar_WeaponData[i].fTickSpeed;
+		}
+		
+		return false, -1, 0;
+	}
+	
+	private void _PA_PopulateProjectileList()
+	{
+		Console.Printf("CROSSHAIR - Starting Projectile Weapon Search.  This may take some time, process will add vanilla game weapons and then search for valid mods, please stand by...");
+		string sGameName;
+		// Populate the array based on the game
+		if (CVar.GetCVar('pavar_Ext_Crosshair_iWadDetect', players[a_Player.PlayerNumber()]).GetBool())
+		{
+			switch (gameinfo.gametype)
+			{
+				case GAME_Doom:
+					sGameName = "Doom";
+					dar_ProjectileNames.Push("Cell");
+					dar_ProjectileNames.Push("RocketAmmo");
+					
+					// Fill out the iWad Actor arrays with monsters and weapons, values are the speed
+					// Monster speed is calculated as speed property / A_Chase state duration (s = p / f)
+					// Weapon speed is the speed property of the projectile it fires
+					dar_MonsterData.Push(new("_PA_iWadActorData").Init("Arachnotron", 4.0));
+					dar_MonsterData.Push(new("_PA_iWadActorData").Init("Archvile", 7.5));
+					dar_MonsterData.Push(new("_PA_iWadActorData").Init("BaronOfHell", 2.67));
+					dar_MonsterData.Push(new("_PA_iWadActorData").Init("HellKnight", 2.67));
+					dar_MonsterData.Push(new("_PA_iWadActorData").Init("Cacodemon", 2.67));
+					dar_MonsterData.Push(new("_PA_iWadActorData").Init("Cyberdemon", 5.3));
+					dar_MonsterData.Push(new("_PA_iWadActorData").Init("Demon", 5.0));
+					dar_MonsterData.Push(new("_PA_iWadActorData").Init("Spectre", 5.0));
+					dar_MonsterData.Push(new("_PA_iWadActorData").Init("ChaingunGuy", 2.67));
+					dar_MonsterData.Push(new("_PA_iWadActorData").Init("DoomImp", 2.67));
+					dar_MonsterData.Push(new("_PA_iWadActorData").Init("Fatso", 2.0));
+					dar_MonsterData.Push(new("_PA_iWadActorData").Init("LostSoul", 1.3));
+					dar_MonsterData.Push(new("_PA_iWadActorData").Init("PainElemental", 2.67));
+					dar_MonsterData.Push(new("_PA_iWadActorData").Init("Revenant", 5.0));
+					dar_MonsterData.Push(new("_PA_iWadActorData").Init("ShotgunGuy", 2.67));
+					dar_MonsterData.Push(new("_PA_iWadActorData").Init("SpiderMastermind", 4.0));
+					dar_MonsterData.Push(new("_PA_iWadActorData").Init("WolfensteinSS", 2.67));
+					dar_MonsterData.Push(new("_PA_iWadActorData").Init("ZombieMan", 2.0));
+					
+					dar_WeaponData.Push(new("_PA_iWadActorData").Init("BFG9000", 25.0));
+					dar_WeaponData.Push(new("_PA_iWadActorData").Init("PlasmaRifle", 25.0));
+					dar_WeaponData.Push(new("_PA_iWadActorData").Init("RocketLauncher", 20.0));
+					break;
+				case GAME_Heretic:
+					sGameName = "Heretic";
+					break;
+				case GAME_Hexen:
+					sGameName = "Hexen";
+					break;
+				case GAME_Strife:
+					sGameName = "Strife";
+					break;
+				case GAME_Chex:
+					sGameName = "Chex";
+					break;
+			}
+		}
+		
+		Console.Printf(string.Format("CROSSHAIR - Added vanilla weapons and %d monsters for %s.  Checking for valid mods.", dar_MonsterData.Size(), sGameName));
+		
+		// Now search and see if there are any weapons that inherit from PA_WeaponUtil
+		ThinkerIterator weaponFinder = ThinkerIterator.Create("PA_WeaponUtil", STAT_DEFAULT);
+		Actor mo;
+		int iWepCount = 0;
+		int iAmmoCount = 0;
+		while (mo = PA_WeaponUtil(weaponFinder.Next()))
+		{
+			if (PA_WeaponUtil(mo).ProjectileWeapon)
+			{
+				if (PA_WeaponUtil(mo).ProjectileAmmoName != "")
+				{
+					string ammoName = PA_WeaponUtil(mo).ProjectileAmmoName;
+					class<Actor> ammoCls = ammoName;
+					if (ammoCls)
+					{
+						dar_ProjectileNames.Push(PA_WeaponUtil(mo).ProjectileAmmoName);
+						iAmmoCount++;
+					}
+					else
+						Console.Printf(string.Format("CROSSHAIR: ERROR! - Type 1 ammo class, %s, not found for valid weapon, %s. Ammo skipped!", PA_WeaponUtil(mo).ProjectileAmmoName, mo.GetClassName()));
+				}
+				iWepCount++;
+			}
+		}
+		
+		Console.Printf(string.Format("CROSSHAIR - Finished Projectile Weapon Search.  Iterated through %d weapons, and found %d valid ammunitions.", iWepCount, iAmmoCount));
+	}
+	
+	private bool _PA_ProjectileWeaponSelected()
+	{
+		for (int i = 0; i < dar_ProjectileNames.Size(); i++)
+		{	// This check is safe because the class names are checked for valid classes when assembled
+			if (players[a_Player.PlayerNumber()].ReadyWeapon.AmmoType1 == dar_ProjectileNames[i] ||
+				players[a_Player.PlayerNumber()].ReadyWeapon.AmmoType2 == dar_ProjectileNames[i])
+				return true;
+		}
+		
+		return false;
+	}
+	
+	private void _PA_ProjectileLeadingMonitor()
+	{
+		if (bLeadProjectile && !bHaveLeaderReticule && _PA_ProjectileWeaponSelected())
+		{
+			bool bSpawned = false;
+		
+			[bSpawned, a_LeaderReticule] = A_SpawnItemEx("PA_CrosshairProjectileLeader", flags: SXF_SETMASTER);
+			[bSpawned, a_LeaderPoint] = A_SpawnItemEx("PA_CrosshairProjectileLeader_Point", flags: SXF_SETMASTER);
+			if (a_LeaderReticule && a_LeaderPoint)
+			{
+				PA_CrosshairProjectileLeader(a_LeaderReticule).a_Player = a_Player;
+				PA_CrosshairProjectileLeader(a_LeaderPoint).a_Player = a_Player;
+				
+				PA_CrosshairProjectileLeader(a_LeaderReticule).a_Partner = a_LeaderPoint;
+				PA_CrosshairProjectileLeader(a_LeaderPoint).a_Partner = a_LeaderReticule;
+				
+				bHaveLeaderReticule = true;
+			}		
+		}
+		else if (!bLeadProjectile || (bHaveLeaderReticule && !_PA_ProjectileWeaponSelected()))
+		{
+			PA_CrosshairProjectileLeader(a_LeaderReticule).bDestroyed = true;
+			PA_CrosshairProjectileLeader(a_LeaderPoint).bDestroyed = true;
+			
+			bHaveLeaderReticule = false;
+		}
+	}
+
+	//
+	//	Initialization
+	//
+	override void PostBeginPlay()
+	{
+		if (GetAge() < 1)
+		{	
+			bCanAddToDebug = true;
+			bHaveLeaderReticule = false;
+			bHaveTargettingPoints = false;
+			
+			// Debug Point internals
+			_searchTicker = 0;
+			_nextIndex = 0;
+			bCanPurgePoints = false;
+			bRestartDebugPoints = false;
+			
+			Super.PostBeginPlay();
+			Console.Printf("CROSSHAIR - Hi! I'm the PA Crosshair!");
+			
+			if (master)
+			{
+				a_Player = master;
+			}
+			
+			// Take over target pointer, null it here, AcquireTarget will set it later
+			target = null;
+			
+			// Extensions can have debug output by registering with the Control Handler's dar_DebugExtensions array.
+			// Note that calling PushNote is just for debugging.
+			camHandler = PA_Camera_ControlHandler(EventHandler.Find("PA_Camera_ControlHandler"));
+			if (camHandler)
+			{
+				uint crossIndex;
+				crossIndex = camHandler.dar_DebugExtensions.Push(self);
+				Console.Printf("CROSSHAIR - Registered with the Camera Control Handler for debug output.  It should take note.");
+				camHandler.PushNote(crossIndex, "Crosshair", false);
+			}
+			else
+				Console.Printf("CROSSHAIR: - ERROR! - Crap...something went wrong.  Unable to find Camera Control Handler!");
+		
+			// Populates an array of monsters for the searching algorithm
+			iSearchDivisor = CVar.GetCVar('pavar_Ext_Crosshair_SearchDivsor', players[a_Player.PlayerNumber()]).GetInt();
+			_PA_PopulateMonsterList();
+			
+			// Attempts to figure out which weapons fire projectiles - can be broken!
+			_PA_PopulateProjectileList();
+			
+			bCanMonitor = true;
+		}
+	}
+	
+	override void Tick()
+	{
+		Super.Tick();
+		
+		if(CVar.GetCVar('pavar_Ext_UseCrosshair', players[a_Player.PlayerNumber()]).GetBool())
+		{
+			bDestroyLock = CVar.GetCVar('pavar_Ext_Crosshair_DestroyLock', players[a_Player.PlayerNumber()]).GetBool();
+			fTargetTolerance = CVar.GetCVar('pavar_Ext_Crosshair_TargetAngleTolerance', players[a_Player.PlayerNumber()]).GetFloat();
+			bLeadProjectile = CVar.GetCVar('pavar_Ext_Crosshair_ProjectileLeading', players[a_Player.PlayerNumber()]).GetBool();
+			iSearchDistance = CVar.GetCVar('pavar_Ext_Crosshair_SearchDistance', players[a_Player.PlayerNumber()]).GetInt();
+			bSyncPlayer = CVar.GetCVar('pavar_Ext_Crosshair_PlayerSync', players[a_Player.PlayerNumber()]).GetBool();
+			bTargettingDebug = CVar.GetCVar('pavar_Ext_Crosshair_DebugTargetting', players[a_Player.PlayerNumber()]).GetBool();
+		
+			_PA_TargetCountMonitor();			// Make sure the list of monsters is right - if not it'll fix the list and signal debugging to do the same
+			_PA_TargetSync();					// Sync the crosshair to the player's target pointer
+			_PA_AcquireTarget();				// Find a target
+			_PA_TargetAngleTolerance();			// Check the angle tolerance
+			_PA_TargetDestructionMonitor();		// Check if the target is dead
+			_PA_SetLocation();					// Locate the crosshair
+			
+			_PA_ProjectileLeadingMonitor();		// The actual object position themselves, this just checks if they need to exist or not
+		}
+		
+		if (bCanPurgePoints)
+			bCanPurgePoints = false;
+		_PA_Debug();
+	}
+	
+	//
+	// - Monster count monitor
+	// - This needs to check if the monster count differs from the size of the array.
+	// - If it does the search needs to happen again so new monsters are added to the array.
+	//
+	private void _PA_TargetCountMonitor()
+	{
+		if (dar_LevelMonsters.Size() < Level.Total_Monsters)
+		{
+			console.printf("CROSSHAIR - Monster count differs from internal search array.  Repopulating...");
+			bRestartDebugPoints = true;
+			_PA_PopulateMonsterList();
+		}
+	}
+	
+	//
+	// - This is honestly kind of pointless.  I thought it would be needed
+	// - but auto-targetting handles that.
+	//
+	// - ACTUALLY this can be useful if it runs in the opposite direction!
+	// - DON'T EVER FUCK WITH THE PLAYER'S POINTERS!!! CONSIDER THEM READ-ONLY!
+	// - BUT, you can set the pointers of the crosshair all day!  So this function
+	// - comes first and makes the system target whatever the player is.
+	//
+	private void _PA_TargetSync()
+	{
+		if (bSyncPlayer)
+			 target = a_Player.GetPointer(AAPTR_PLAYER_GETTARGET);
+	}
+	
+	//
+	// - Does as the name implies, it searches the monster array for a target
+	// - along the "Multi-Point Analysis Cast", which is basically a line divided up.
+	//
+	private void _PA_AcquireTarget()
+	{	
+		// Either the destroy lock is disabled, or there is no target - also things are initialized
+		if(target == null && bCanMonitor)
+		{			
+			// Search for a target along the point vector - this double loop is why searching is so tightly controlled, but it still happens often
+			// Lots of math here, which drains efficiency too.
+			for (int i = 0; i < iSearchDistance / iSearchDivisor; i++)
+			{
+				vector3 searchPoint = a_Player.pos + (Cos(a_Player.angle) * (iSearchDivisor * i),
+												Sin(a_Player.angle) * (iSearchDivisor * i),
+												0);
+													
+				for (int j = 0; j < dar_LevelMonsters.Size(); j++)
+				{
+					// If the given search point is within the radius of a monster, that point and the monster are flagged - need to break so the closest monster/point pair are selected
+					if(abs(searchPoint.x - dar_LevelMonsters[j].pos.x) < dar_LevelMonsters[j].radius && abs(searchPoint.y - dar_LevelMonsters[j].pos.y) < dar_LevelMonsters[j].radius)
+					{
+						target = dar_LevelMonsters[j];
+						break;
+					}
+				}
+				
+				// Short circuit the search if a monster/point pair was found
+				if (target != null)
+				{
+					if (bTargettingDebug && bHaveTargettingPoints)
+						dar_TargetPoints[i].bHit = true;	// This is safe because there are as many visual points as this loop searches
+					break;									// and they are placed in their array first - a little intentional arrangment for easy access.
+				}
+			}
+		}
+	}
+	
+	//
+	// - Credit to KeksDose for help with this rather dense mess.
+	// - This is the tolerance angle calculation that determines if
+	// - the crosshair should return to idle if the angle from where
+	// - the player is looking to the edge of the target radius is
+	// - greater than a specified value.
+	//
+	// - The end result is basically the arcos of two sides of a triangle
+	// - which results in the angle produced by those sides. The points
+	// - are the player, the end of the search vector, and one of the
+	// - target's horizon points.  A horizon point is the maximum edge of
+	// - the target's radius from the perspective of the player's view
+	// - angle.  The horizon point that is used is located between the player
+	// - and the target.  Finally the tolerance angle is calculated
+	// - regardless of where the player is looking so one last check is made
+	// - to determine if the player's vector passes within the radius of the
+	// - target.  Thus the player must be looking away from the target for the
+	// - angle check to matter.
+	//
+	private void _PA_TargetAngleTolerance()
+	{
+		if (!bDestroyLock && target != null)
+		{
+			let searchPoint = a_Player.pos + (Cos(a_Player.angle) * (iSearchDivisor * ((iSearchDistance / iSearchDivisor) - 1)),
+								Sin(a_Player.angle) * (iSearchDivisor * ((iSearchDistance / iSearchDivisor) - 1)), 0);
+			
+			// Figure out which horizon point is between the player and the monster
+			// First get the vectors of the horizon points - we recalculate rather than try to do any array access
+			let sideways = (-sin(a_Player.angle), cos(a_Player.angle), 0);
+			let horizon_posLeft = Level.Vec3Offset(target.pos, target.radius * sideways);
+			let horizon_posRight = Level.Vec3Offset(target.pos, -1 * target.radius * sideways);
+			
+			// Second, get the distance from the target to the player
+			let playerTargetVec = Level.Vec3Diff(target.pos, a_Player.pos);
+			let playerTargetVecLength = playerTargetVec.Length();
+			
+			// Third, get the distances from each horizon point to the player
+			let horizon_diffLeft = Level.Vec3Diff(horizon_posLeft, a_Player.pos);
+			let playerHorizonLeftLength = horizon_diffLeft.Length();
+			let horizon_diffRight = Level.Vec3Diff(horizon_posRight, a_Player.pos);
+			let playerHorizonRightLength = horizon_diffRight.Length();
+			
+			// Last, the check is done inline with the lengths, left is smaller?  the left point is closest, otherwise the right one - it gets assigned to viewableHorizon
+			let viewableHorizon = abs(playerHorizonLeftLength - playerTargetVecLength) < abs(playerHorizonRightLength - playerTargetVecLength) ? horizon_posLeft : horizon_posRight;
+			
+			// We know which horizon point to use, we have the last vector, and we have the player.
+			// Now calculate the angle
+			let playerViewableDiff = Level.Vec3Diff(viewableHorizon, a_Player.pos);
+			let playerSearchDiff = Level.Vec3Diff(searchPoint, a_Player.pos);
+			let playerViewableLength = playerViewableDiff.Length();
+			let playerSearchLength = playerSearchDiff.Length();
+			
+			// Create a point that extends from the player the length of the difference of the player and target vectors.
+			let playerTargetAlignment = a_Player.pos + (Cos(a_Player.angle) * playerTargetVecLength,
+														Sin(a_Player.angle) * playerTargetVecLength, 0);
+			let playerTargetAlignmentDiff = Level.Vec3Diff(playerTargetAlignment, target.pos);
+			let playerTargetAlignmentLength = playerTargetAlignmentDiff.Length();
+			
+			if (0 < playerViewableLength && 0 < playerSearchLength && playerTargetAlignmentLength > target.radius)
+			{
+				let cosang = (playerViewableDiff dot playerSearchDiff) / (playerViewableLength * playerSearchLength);
+				let toleranceAng = acos(cosang);
+				if (toleranceAng > fTargetTolerance)
+					target = null;
+			}
+		}		
+	}
+	
+	//
+	// - Checks if a target is dead and nulls the pointer if it is
+	//
+	private void _PA_TargetDestructionMonitor()
+	{
+		if (target != null ? InStateSequence(target.CurState, target.ResolveState("Death")) || InStateSequence(target.CurState, target.ResolveState("XDeath")) : false)
+			target = null;
+	}
+	
+	//
+	// - Last in the position logic calls
+	// - Actually sets the location of the crosshair
+	//
+	private void _PA_SetLocation()
+	{
+		if (target != null)
+			SetOrigin(target.pos, true);
+		else
+		{
+			SetOrigin(a_Player.pos + (Cos(a_Player.angle) * float(iSearchDistance),
+										Sin(a_Player.angle) * float(iSearchDistance),
+										0), true);
+		}
+	}
+	
+	private void _PA_Debug()
+	{
+		if (bCanAddToDebug)
+		{
+			_PA_Debug_Message(string.Format("DEBUG - Crosshair TID: %d\n- - -", self.tid), 0);
+			_PA_Debug_Message(string.Format("Lock Target          : %s", CVar.GetCVar('pavar_Ext_Crosshair_DestroyLock', players[a_Player.PlayerNumber()]).GetBool() ? "On" : "Off"), CVar.GetCVar('pavar_Ext_Crosshair_DestroyLock', players[a_Player.PlayerNumber()]).GetBool() ? 8 : 3);
+			_PA_Debug_Message(string.Format("Projectile Leading   : %s", CVar.GetCVar('pavar_Ext_Crosshair_ProjectileLeading', players[a_Player.PlayerNumber()]).GetBool() ? "On" : "Off"), CVar.GetCVar('pavar_Ext_Crosshair_ProjectileLeading', players[a_Player.PlayerNumber()]).GetBool() ? 3 : 8);
+			bCanAddToDebug = false;
+		}
+		
+		if (bTargettingDebug && !bHaveTargettingPoints)		
+			bHaveTargettingPoints = _PA_Debug_PointSpawner();		
+		else if ((!bTargettingDebug && bHaveTargettingPoints) || bRestartDebugPoints)
+			_PA_Debug_PointEraser();
+		
+		if (bTargettingDebug && bHaveTargettingPoints && !bRestartDebugPoints)
+			_PA_Debug_PointAnimator();
+	}
+	
+	//
+	// -- This is how a debug message makes it onto the screen.
+	// -- The string argument is the text, the int is the text color.
+	//
+	private void _PA_Debug_Message(string message, int color)
+	{
+		dar_DebugStrings.Push(message);
+		dar_DebugColors.Push(color);
+	}
+	
+	/*
+		This method is responsible for spawning the points that represent the collision zones of enemies
+		and the "Multi-Point Analysis Cast" (it's not a true raycast) points.  The points themselves handle
+		their locations.
+	*/
+	private bool _PA_Debug_PointSpawner()
+	{
+		bool bSpawned = false;
+		
+		for (int i = 0; i < iSearchDistance / iSearchDivisor; i++)
+		{
+			Actor cdp;
+			[bSpawned, cdp] = A_SpawnItemEx("PA_CrosshairDebugPoint", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, SXF_SETMASTER, 0, 0);
+			if (cdp)
+			{
+				PA_CrosshairDebugPoint(cdp).a_Player = a_Player;
+				PA_CrosshairDebugPoint(cdp).fInterval = i * (iSearchDistance / iSearchDivisor);
+			}
+		}
+		
+		float fActorPoints = CVar.GetCVar('pavar_Ext_Crosshair_ActorPoints', players[a_Player.PlayerNumber()]).GetFloat();
+		for (int i = 0; i < dar_LevelMonsters.Size(); i++)
+		{
+			for (int j = 0; j < fActorPoints; j++)
+			{
+				Actor arp;
+				[bSpawned, arp] = A_SpawnItemEx("PA_ActorRadiusPoint", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, SXF_SETMASTER, 0, 0);
+				if (arp)
+				{
+					PA_ActorRadiusPoint(arp).a_Owner = dar_LevelMonsters[i];
+					PA_ActorRadiusPoint(arp).fInterval = PA_Util.ActorPointAngle(fActorPoints, j);
+				}
+			}
+			
+			Actor eahp, wahp;
+			[bSpawned, eahp] = A_SpawnItemEx("PA_ActorHorizonPoint", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, SXF_SETMASTER, 0, 0);
+			[bSpawned, wahp] = A_SpawnItemEx("PA_ActorHorizonPoint", 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, SXF_SETMASTER, 0, 0);
+			if (eahp && wahp)
+			{
+				PA_ActorHorizonPoint(eahp).a_Owner = dar_LevelMonsters[i];
+				PA_ActorHorizonPoint(eahp).a_Player = a_Player;
+				PA_ActorHorizonPoint(eahp).fInterval = 1;
+				
+				PA_ActorHorizonPoint(wahp).a_Owner = dar_LevelMonsters[i];
+				PA_ActorHorizonPoint(wahp).a_Player = a_Player;
+				PA_ActorHorizonPoint(wahp).fInterval = -1;
+			}
+		}
+		
+		return bSpawned;
+	}
+	
+	/*
+		Points self-destruct if their bDestroyed variable is set to true.
+		However they wait for a signal from the crosshair, which needs to
+		eliminate its own references before letting them go.
+	
+	*/
+	private void _PA_Debug_PointEraser()
+	{
+		for (int i = 0; i < dar_TargetPoints.Size(); i++)
+			dar_TargetPoints[i].bDestroyed = true;
+		
+		dar_TargetPoints.Clear();
+		bCanPurgePoints = true;
+		bHaveTargettingPoints = false;
+		bRestartDebugPoints = false;
+	}
+
+	/*
+		The point animation is completely superficial.
+		The original idea was that whichever point was being analyzed
+		would turn yellow, however the checks happen so fast that only
+		the last point would ever be seen.  This method just creates
+		the animation from the original concept.
+		
+		The animation takes advantage of finite states, so the code does
+		not have to set the point's state back to Spawn to make it blue again,
+		the Checking state lasts 3 tics before returning to Spawn.
+	
+	*/
+	private int _searchTicker;
+	private int _animatorIndex;
+	private int _nextIndex;
+	
+	private void _PA_Debug_PointAnimator()
+	{
+		_animatorIndex = (iSearchDistance / iSearchDivisor) / 4;
+		
+		if(_searchTicker > 1)
+		{			
+			for (int i = _nextIndex++; i < iSearchDistance / iSearchDivisor; i += _animatorIndex - 1)
+			{
+				if (dar_TargetPoints[i].bHit)
+				{
+					dar_TargetPoints[i].SetStateLabel("Hit");
+					dar_TargetPoints[i].bHit = false;
+				}
+				else
+					dar_TargetPoints[i].SetStateLabel("Checking");
+			}
+
+			if(_nextIndex == _animatorIndex - 1)
+				_nextIndex = 0;
+
+			_searchTicker = 0;
+		}
+		else
+			_searchTicker++;		
+	}
+	
+	States
+	{
+		Spawn:
+			MODL A -1;
+			stop;
+	}
+}

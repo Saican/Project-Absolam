@@ -1,0 +1,43 @@
+/*
+*	Project Absolam - Crosshair Weapon Utility
+*
+*	This class is to be inherited from in order for weapons added
+*	by other mods to function with Project Absolam.
+*
+*	To use, inherit your weapon from PA_WeaponUtil, and set 
+*	PA_WeaponUtil.ProjectileWeapon to true in your Default.
+*	Then for a projectile ammo, supply the ammo class name
+*	and the projectile class speed property.
+*
+*	Projectile Ammo Name - name of ammunition class inheriting from ammo
+*	Projectile Speed - speed property of projectile class fired by weapon
+*
+*	^^^ Those should be 2 distinct classes you need information from ^^^
+*
+*	The ammo classes you define must be valid class names!
+*	The crosshair does have validity checks so invalid classes are skipped.
+*
+*	You must still use the AmmoType1 and AmmoType2 properties when assigning
+*	ammunitions to weapons.  The crosshair only checks those properties,
+*	the properties supplied here are information only.
+*
+*/
+
+class PA_WeaponUtil : weapon abstract
+{
+	bool ProjectileWeapon;
+	property ProjectileWeapon: ProjectileWeapon;
+	
+	string ProjectileAmmoName;
+	property ProjectileAmmoName: ProjectileAmmoName;
+	
+	float Projectile_Speed;
+	property Projectile_Speed: Projectile_Speed;
+	
+	Default
+	{
+		PA_WeaponUtil.ProjectileWeapon false;
+		PA_WeaponUtil.ProjectileAmmoName "";
+		PA_WeaponUtil.Projectile_Speed 0.0;
+	}
+}

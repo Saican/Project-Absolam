@@ -1,0 +1,52 @@
+/* -- Crosshair -- */
+
+// - This is the basic crosshair model
+model PA_Crosshair
+{
+	path "models/actors/character/player"
+	scale 6.0 6.0 6.0
+	
+	ROTATING
+	Rotation-Center 0.0 0.0 0.0
+	Rotation-Speed 3.0
+	Rotation-Vector 0.0 1.0 0.0
+	
+	model 0 "PACRSHR.md3"	
+	skin 0 "PACRSHR.png"
+	
+	FrameIndex MODL A 0 0
+}
+
+// - The projectile leading reticule
+model PA_CrosshairProjectileLeader
+{
+	path "models/actors/character/player"
+	scale 2.0 2.0 2.0
+	
+	ROTATING
+	Rotation-Center 0.0 0.0 0.0
+	Rotation-Speed 2.0
+	Rotation-Vector 0.0 1.0 0.0
+	
+	model 0 "PACRSHR.md3"
+	skin 0 "PACRHPL.png"
+	
+	FrameIndex MODL A 0 0
+}
+
+// - The projectile leading point
+model PA_CrosshairProjectileLeader_Point
+{
+	path "models/actors/character/player"
+	scale 1.0 1.0 1.0
+
+	ROTATING
+	Rotation-Center 0.0 0.0 0.0
+	Rotation-Speed 1.0
+	Rotation-Vector 0.0 1.0 0.0
+	
+	model 0 "PACRSHR.md3"
+	skin 0 "PACRHPP.png"
+	
+	FrameIndex MODL A 0 0
+}
