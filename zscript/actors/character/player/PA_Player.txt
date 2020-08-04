@@ -64,7 +64,53 @@ class PA_Player : DoomPlayer
 			{
 				class<Actor> cls = camHandler.getExtension(iLoadedExtensionCount);
 				if (cls && PA_ExtData(camHandler.dar_ExtData[iLoadedExtensionCount]).dar_ExtPlayerToggles[PlayerNumber()])
-					A_SpawnItemEx(cls, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, SXF_SETMASTER, 0, 0);
+				{
+					if (PA_ExtData(camHandler.dar_ExtData[iLoadedExtensionCount]).bSpawnVargs)
+					{
+						float xofs = 0.0, yofs = 0.0, zofs = 0.0, xvel = 0.0, yvel = 0.0, zvel = 0.0, ang = 0.0;
+						int fail = 0, sid = 0;
+						for (int i = 0; i < PA_ExtData(camHandler.dar_ExtData[iLoadedExtensionCount]).dar_VArgs.Size(); i++)
+						{
+							switch (i)
+							{
+								case PA_Util.XOffset:
+									xofs = PA_ExtData(camHandler.dar_ExtData[iLoadedExtensionCount]).dar_VArgs[i].ToDouble();
+								break;
+								case PA_Util.YOffset:
+									yofs = PA_ExtData(camHandler.dar_ExtData[iLoadedExtensionCount]).dar_VArgs[i].ToDouble();
+								break;
+								case PA_Util.ZOffset:
+									zofs = PA_ExtData(camHandler.dar_ExtData[iLoadedExtensionCount]).dar_VArgs[i].ToDouble();
+								break;
+								case PA_Util.XVelocity:
+									xvel = PA_ExtData(camHandler.dar_ExtData[iLoadedExtensionCount]).dar_VArgs[i].ToDouble();
+								break;
+								case PA_Util.YVelocity:
+									yvel = PA_ExtData(camHandler.dar_ExtData[iLoadedExtensionCount]).dar_VArgs[i].ToDouble();
+								break;
+								case PA_Util.ZVelocity:
+									zvel = PA_ExtData(camHandler.dar_ExtData[iLoadedExtensionCount]).dar_VArgs[i].ToDouble();
+								break;
+								case PA_Util.Angle:
+									ang = PA_ExtData(camHandler.dar_ExtData[iLoadedExtensionCount]).dar_VArgs[i].ToDouble();
+								break;
+								case PA_Util.FailChance:
+									fail = PA_ExtData(camHandler.dar_ExtData[iLoadedExtensionCount]).dar_VArgs[i].ToInt();
+								break;
+								case PA_Util.ThingID:
+									sid = PA_ExtData(camHandler.dar_ExtData[iLoadedExtensionCount]).dar_VArgs[i].ToInt();
+								break;
+								default:
+									console.printf("PROJECT ABSOLAM EXTENSION ERROR !! - Somehow got an unknown spawn argument!");
+								break;
+							}
+						}
+						
+						A_SpawnItemEx(cls, xofs, yofs, zofs, xvel, yvel, zvel, ang, SXF_SETMASTER, fail, sid);
+					}
+					else
+						A_SpawnItemEx(cls, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, SXF_SETMASTER, 0, 0);
+				}
 			}
 		}
 	}

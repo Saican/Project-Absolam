@@ -11,6 +11,7 @@ struct PA_Util
 	const _UnregisterAll = "unregisterall";
 	const _Unregister = "unregister";
 	const _Register = "registerextension";
+	const _True = "true";
 
 	enum EXTCMD
 	{
@@ -19,6 +20,28 @@ struct PA_Util
 		Register,
 		unknown,
 	};
+	
+	enum SPWNARG
+	{
+		XOffset,
+		YOffset,
+		ZOffset,
+		XVelocity,
+		YVelocity,
+		ZVelocity,
+		Angle,
+		FailChance,
+		ThingID,
+		none,
+	};
+	
+	static bool stringToBool(string e)
+	{
+		if (e ~== _True)
+			return true;
+		else
+			return false;
+	}
 	
 	static EXTCMD NetCmdToEnum (string eCmd)
 	{

@@ -40,11 +40,13 @@ class PA_Camera_ControlHandler : EventHandler
 	// Stores a list of booleans for each extension player toggle
 	// Args - string, Extension Nice Name; string, CVar boolean name
 	// Return - true on success, false on failure.
-	private bool setExtensionData(string sNme, string cbNme, PA_ExtData_Varg tVargs = null)
+	private bool setExtensionData(string sNme, string cbNme, bool bVUse, PA_ExtData_Varg tVargs = null)
 	{
 		PA_ExtData extData = new ("PA_ExtData");
 		if (extData)
 		{
+			extData.bSpawnVargs = bVUse;
+			
 			if (tVargs)
 				extData.dar_VArgs.Move(tVargs.dar_VArgs);
 			
@@ -159,7 +161,8 @@ class PA_Camera_ControlHandler : EventHandler
 			Array<string> vargs;
 			if (dar_sExt.Size() > 4)
 			{
-				for (int i = 4; i < dar_sExt.Size(); i++)
+				bVUse = PA_Util.stringToBool(dar_sExt[4]);
+				for (int i = 5; i < dar_sExt.Size(); i++)
 					vargs.Push(dar_sExt[i]);
 			}
 			

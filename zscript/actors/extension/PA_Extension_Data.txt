@@ -7,6 +7,7 @@
 class PA_ExtData
 {
 	Array<bool> dar_ExtPlayerToggles;
+	bool bSpawnVargs;
 	Array<string> dar_VArgs;
 }
 
