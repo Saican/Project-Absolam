@@ -8,7 +8,7 @@ class PA_Crosshair_Registrar : EventHandler
 {
 	override void OnRegister()
 	{
-		string eversion = "0.1";
+		string eversion = "0.1.1";
 		Console.Printf(string.Format("CROSSHAIR REGISTRAR - Hello, I'm the Project Absolam Crosshair Extension, v%s, Handling Registrar.\nNow registering this extension with the Control Handler.  Please Standby...\n- - -", eversion));		
 		//Send the event name, the extension's "nice name", the actor name, and the toggle CVar (must be boolean!!), each separated by a colon ( : )
 		SendNetworkEvent(string.Format("RegisterExtension:Project Absolam Crosshair Extension v%s:PA_Crosshair:pavar_Ext_UseCrosshair", eversion));
