@@ -23,11 +23,11 @@
 */
 class PA_MonsterUtil : actor abstract
 {
-	uint TickSpeed;
+	float TickSpeed;
 	property TickSpeed: TickSpeed;
 	
 	Default
 	{
-		PA_MonsterUtil.TickSpeed 0;
+		PA_MonsterUtil.TickSpeed 0.0;
 	}
 }
