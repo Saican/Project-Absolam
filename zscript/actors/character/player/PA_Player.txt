@@ -6,10 +6,10 @@
 class PA_Player : DoomPlayer
 {
 	float CamOriginZ;
-	int CamTID_MN,	// This is a MAGIC NUMBER! Check DEV_INFO.readme
-		iLoadedExtensionCount;
+	int iLoadedExtensionCount;
 	bool bCanUseCamera,
 		bCanLoadExtensions;
+	Actor _PACam;
 	
 	PA_Camera_ControlHandler camHandler;
 	
@@ -39,10 +39,8 @@ class PA_Player : DoomPlayer
 			
 			Console.Printf("PLAYER(#%d): - Initializing PA Camera. Hang on...", PlayerNumber());
 			CamOriginZ = 64;
-			CamTID_MN = 3113;
 			// Spawn Camera at the bottom of its scroll
-			A_SpawnItemEx("PA_Camera", -Cvar.GetCVar('pavar_CamOriginX', players[PlayerNumber()]).GetFloat(), 0.0, CamOriginZ, 0.0, 0.0, 0.0, 0.0, SXF_SETMASTER, 0, CamTID_MN + PlayerNumber());
-			bCanUseCamera = true;			
+			[bCanUseCamera, _PACam] = A_SpawnItemEx("PA_Camera", -Cvar.GetCVar('pavar_CamOriginX', players[PlayerNumber()]).GetFloat(), 0.0, CamOriginZ, 0.0, 0.0, 0.0, 0.0, SXF_SETMASTER, 0, 0);			
 		}
 	}
 	
@@ -52,9 +50,9 @@ class PA_Player : DoomPlayer
 		if (bCanUseCamera)
 		{
 			if (!CVar.GetCVar('pavar_FrstCam', players[PlayerNumber()]).GetBool())
-				ChangeCamera(CamTID_MN + PlayerNumber(), 0, 0);
+				SetCamera(_PACam);
 			else
-				ChangeCamera(0, 0, 0);
+				SetCamera(self);
 		}
 		
 		// Extensions
